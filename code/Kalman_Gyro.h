@@ -1,0 +1,30 @@
+/*
+ * Gyro_Tackle.h
+ *
+ *  Created on: 2026年3月10日
+ *      Author: 19929
+ */
+
+#ifndef CODE_KALMAN_GYRO_H_
+#define CODE_KALMAN_GYRO_H_
+
+// 卡尔曼滤波结构体
+typedef struct{
+    float K;        // 卡尔曼增益
+    float X;        // 估计值
+    float P;        // 估计误差 协方差
+    float R;        // 测量噪声----->传感器的固有误差，需要自己给定调参
+    float Q;        // 过程噪声----->外界干扰的不确定度，需要自己给定调参
+}Kalman_Filter_t;
+
+extern Kalman_Filter_t kf_yaw;
+
+extern float Yaw_Filtered;             // 卡尔曼滤波后的yaw角
+
+void Yaw_Kalman_Filter_Init(float Q,float R);   // yaw角的卡尔曼滤波初始化+参数整定
+
+float Kalman_Filter_Yaw_Update(float yaw_raw);
+
+
+
+#endif /* CODE_KALMAN_GYRO_H_ */
