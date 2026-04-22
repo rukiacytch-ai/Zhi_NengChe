@@ -5,6 +5,7 @@
  *      Author: 19929
  */
 
+#include <math.h>
 #include "zf_common_headfile.h"
 
 #pragma section all "cpu0_dsram"
@@ -78,7 +79,7 @@ void PID_Update_Double_P(PID_t *p)
 
     // Ë«PDÊ½PID¼ÆËã
     p->Out = p->Kp * p->Error0
-           + p->KP2 * p->Error0 * abs(p->Error0)
+           + p->KP2 * p->Error0 * fabs(p->Error0)
            + p->Kd * (p->Error0 - p->Error1)
            + p->GKD * p->gyro_z;
 

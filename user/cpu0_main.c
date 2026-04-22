@@ -1,7 +1,5 @@
 #include "isr_config.h"
 #include "zf_common_headfile.h"
-#include <stdio.h>
-#include <math.h>
 #pragma section all "cpu0_dsram"
 // 在使用 #pragma section all restore 之前的全局变量都会放入 CPU0 的 RAM 中
 
@@ -317,6 +315,10 @@ int core0_main(void)
                     is_send_once = false;
                 }
                 PID_Flag = false;
+                SpeedPID_L.Out = 0;
+                SpeedPID_R.Out = 0;
+                DifSpeed_Target = 0;
+                Target_AveSpeed = 0;
                 LED1_ON();
                 LED2_ON();
                 LED3_ON();
@@ -379,11 +381,7 @@ int core0_main(void)
             }
         }
 
-        if (is_replaying)
-        {
-            if (wait_for_a_while)
-                Replay_the_path();
-        }
+        // Replay_the_path() 已移入定时器中断，避免竞态条件
 
         /* 示波器显示通道 */
         /*-----------------------角度环波形-----------------------*/
@@ -542,6 +540,13 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
             }
         }
         /*------------------------循迹打点逻辑------------------------*/
+
+        /*------------------------复现追踪逻辑------------------------*/
+        if (is_replaying && wait_for_a_while)
+        {
+            Replay_the_path();
+        }
+        /*------------------------复现追踪逻辑------------------------*/
 
         // 2. 速度环 PID 更新
         if (PID_Flag)
