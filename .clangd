@@ -1,7 +1,9 @@
 Diagnostics:
   UnusedIncludes: None
-  Limit: 0
   Suppress: ["expected_fn_body", "unknown_type", "drv_unknown_argument"]
+
+CompileFlags:
+  Add: [-ferror-limit=0]
 
 Index:
   Background: Build

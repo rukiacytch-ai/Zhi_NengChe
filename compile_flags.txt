@@ -1,5 +1,6 @@
 --target=arm-none-eabi
 -m32
+-ferror-limit=0
 -include
 d:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Seekfree_TC264_Opensource_Library/clang_compat.h
 -D__TASKING__

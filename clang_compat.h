@@ -17,6 +17,16 @@
 #define __int64_t long long
 #define __uint64_t unsigned long long
 
+/* Standard C99 types for Clangd compatibility */
+typedef unsigned char      uint8_t;
+typedef unsigned short     uint16_t;
+typedef unsigned int       uint32_t;
+typedef unsigned long long uint64_t;
+typedef signed char        int8_t;
+typedef signed short       int16_t;
+typedef signed int         int32_t;
+typedef signed long long   int64_t;
+
 #define __far
 #define __near
 #define __sfr
@@ -32,26 +42,31 @@
 #define __sfrbit32
 #define __bit unsigned char
 #define _INLINE_ inline
+#define __indirect
 
 /* Fixed-point types */
+#ifndef __fract
 #define __fract float
+#endif
+#ifndef __sfract
 #define __sfract float
+#endif
+#ifndef __accum
 #define __accum float
+#endif
+#ifndef __laccum
 #define __laccum float
+#endif
 #define __sat
 
-/* TriCore specific */
-#define __nop() 
+/* TriCore specific intrinsics */
+#define __nop()
 #define __enable()
 #define __disable()
+#define __isync()
+#define __dsync()
+#define __debug()
 #define __ischar char
-
-/* Tasking interrupts and attributes */
-#define __interrupt(...)
-#define __vector_table(...)
-#define __interrupt_fast(...)
-#define __trap(...)
-#define __bisr_(...)
 #define __mtcr(...)
 #define __mfcr(...) 0
 #define __extru(...) 0
@@ -60,6 +75,15 @@
 #define __imaskldmst(...)
 #define __cmpswapw(...) 0
 #define __round16(...) 0
+#define __abs(...) 0
+#define __fabs(x) (x)
+
+/* Tasking interrupts and attributes */
+#define __interrupt(...)
+#define __vector_table(...)
+#define __interrupt_fast(...)
+#define __trap(...)
+#define __bisr_(...)
 
 /* Frequently used types in AURIX projects if headers are missed */
 #ifndef uint32
@@ -72,7 +96,7 @@ typedef unsigned short uint16;
 typedef unsigned char uint8;
 #endif
 #ifndef int32
-typedef long int32;
+typedef int int32;
 #endif
 #ifndef int16
 typedef short int16;
@@ -94,5 +118,13 @@ typedef double float64;
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
+
+/* Standard library polyfills for IntelliSense */
+int printf(const char *format, ...);
+double fabs(double x);
+
+/* Suppress Tasking specific pragmas that Clang doesn't like */
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wmicrosoft-anon-tag"
 
 #endif

@@ -1,0 +1,22 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 80
+# 大括号独占一行 (Allman style)
+BreakBeforeBraces: Allman
+# 允许函数参数在括号后立即换行
+AlignAfterOpenBracket: AlwaysBreak
+# 禁止将短的函数/语句放在同一行
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+# 强制构造函数/函数调用的参数换行 (如果你需要更激进的括号换行)
+BinPackArguments: false
+BinPackParameters: false
+# 排序设置
+SortIncludes: false
+# 换行符处理
+DeriveLineEnding: false
+UseTab: Never
+...
