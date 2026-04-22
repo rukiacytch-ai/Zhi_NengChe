@@ -66,5 +66,6 @@ libraries/zf_common \
 libraries/zf_components \
 libraries/zf_device \
 libraries/zf_driver \
+. \
 user \
 

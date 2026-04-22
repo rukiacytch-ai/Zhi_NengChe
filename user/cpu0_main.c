@@ -1,639 +1,565 @@
-#include "zf_common_headfile.h"
 #include "isr_config.h"
+#include "zf_common_headfile.h"
 #pragma section all "cpu0_dsram"
+// åœ¨ä½¿ç”¨ #pragma section all restore ä¹‹å‰çš„å…¨å±€å˜é‡éƒ½ä¼šæ”¾å…¥ CPU0 çš„ RAM ä¸­
 
-/* ¶¨Ê±ÖĞ¶Ïºê¶¨Òå */
-#define PIT_NUM                 (CCU61_CH0 )
+/* å®šæ—¶å™¨ä¸­æ–­å®å®šä¹‰ */
+#define PIT_NUM (CCU61_CH0) // ä½¿ç”¨çš„å®šæ—¶å™¨ä¸­æ–­ç¼–å·
 
-/*------------------------ ÍÓÂİÒÇ´¦Àí²ÎÊı ------------------------*/
-float yaw;
+/*------------------------è¿™é‡Œæ˜¯å¤„ç†å˜é‡------------------------*/
+/* ä¸€é˜¶ä½é€šæ»¤æ³¢ç³»æ•°ï¼Œä¹Ÿå°±æ˜¯å½“å‰æ•°æ®å æ»¤æ³¢ç»“æœçš„ 0.2 æƒé‡ */
+#define Alpha (0.2f)
+// åŸå§‹ z è½´è§’é€Ÿåº¦
+float Gyro_z = 0.0f;
+/* ä¸€é˜¶ä½é€šæ»¤æ³¢åçš„ z è½´è§’é€Ÿåº¦ */
+float Filtered_Gyro_z;
+/* å¡å°”æ›¼æ»¤æ³¢åçš„ Yaw */
 float KalMan_Yaw = 0;
+
+/*------------------------è¿™é‡Œæ˜¯å¤„ç†å˜é‡------------------------*/
+
+/*------------------------PID å‚æ•°å˜é‡------------------------*/
+/* PID é€Ÿåº¦ç¯è¾“å‡ºé™å¹… */
+#define MAX_SPEED (5000)
+
+/* å·¦è½®é€Ÿåº¦ç¯ PID */
+PID_t SpeedPID_L = {
+    .Kp = 31.8,
+    .Ki = 5.8,
+    .Kd = 0.0,
+
+    .OutMax = MAX_SPEED,
+    .OutMin = -MAX_SPEED,
+};
+
+/* å³è½®é€Ÿåº¦ç¯ PID */
+PID_t SpeedPID_R = {
+    .Kp = 31.8,
+    .Ki = 5.8,
+    .Kd = 0.0,
+
+    .OutMax = MAX_SPEED,
+    .OutMin = -MAX_SPEED,
+};
+
+/* è§’åº¦ç¯ PID */
+PID_t AnglePID = {
+    .Kp = 0.07,
+    .Kd = 0.0,
+    .GKD = 0.050,
+    .KP2 = 0.002,
+
+    //    .Kp = 0.1,
+    //    .Kd = 2,
+
+    .OutMax = 20,
+    .OutMin = -20,
+};
+
+// åˆå§‹åŒ– 0.5s åï¼Œè¯»å–å½“å‰è§’åº¦å€¼ä½œä¸ºç›®æ ‡è§’åº¦å€¼
 float Target_init_angle = 0.0f;
-bool is_waiting_done = false;
-bool is_init_angle_done = false;
-bool is_set_once = false;
+bool is_waiting_done = false;    // ä¿è¯ count6 åªèµ°ä¸€æ¬¡
+bool is_init_angle_done = false; // è¯»å–åˆå§‹è§’åº¦å€¼æ ‡å¿—ä½
+bool is_set_once = false;        // ä¿è¯åˆå§‹è§’åº¦åªè¢«è®¾ç½®ä¸€æ¬¡
 
-/*------------------------ PID ´¦Àí²ÎÊı ------------------------*/
-#define MAX_SPEED               (5000)
-PID_t SpeedPID_L = {.Kp = 31.8, .Ki = 5.8, .Kd = 0.0, .OutMax = MAX_SPEED, .OutMin = -MAX_SPEED};
-PID_t SpeedPID_R = {.Kp = 31.8, .Ki = 5.8, .Kd = 0.0, .OutMax = MAX_SPEED, .OutMin = -MAX_SPEED};
-PID_t AnglePID = {.Kp = 0.05, .Kd = 0.0,.GKD = 0.04,.KP2 = 0.002,.OutMax = 30,.OutMin = -30,};
-
+/* é€Ÿåº¦ç›®æ ‡å€¼ */
 float Target_AveSpeed = 0;
+/* è§’åº¦ç›®æ ‡å€¼ */
 float Target_Angle = 0;
-float LeftSpeed, RightSpeed;
-float AveSpeed, DifSpeed_Actual, DifSpeed_Target;
+/* è¾“å‡º PWM çš„å¹³è¡¡ PWM ä»¥åŠè½¬å‘ PWM */
+float LeftSpeed, RightSpeed;                      // å·¦å³è½®å®é™…é€Ÿåº¦å€¼
+float AveSpeed, DifSpeed_Actual, DifSpeed_Target; // å¹³å‡é€Ÿåº¦å’Œå·®é€Ÿé€Ÿåº¦å€¼
+/* PID å¼€å¯æ ‡å¿—ä½ */
 bool PID_Flag = false;
+/* è§’åº¦åå·®å€¼å€¼ */
 double error_angle = 0;
-bool is_use_fuya = false;
 
-/*------------------------ ¹ßµ¼+´æ´¢²ÎÊı ------------------------*/
-// xy ×ø±êÏµ
-float x_delta, y_delta;
-float x_sum, y_sum;           // µ±Ç°ÊµÊ±×ø±ê
-float rad_angle;
+bool is_use_fuya = false; // æ˜¯å¦ä½¿ç”¨è´Ÿå‹æ ‡å¿—ä½
 
-// Â·¾¶µã½á¹¹Ìå
-typedef struct
+bool high_duty_time = false; // ä¸Šç”µå ç©ºæ¯”å˜é•¿æ—¶é—´
+
+/*------------------------PID å‚æ•°å˜é‡------------------------*/
+
+/*------------------------å¾ªè¿¹ç®—æ³•å˜é‡------------------------*/
+
+bool is_clear_loc = false;      // æ˜¯å¦éœ€è¦æ¸…ç©ºä½ç½®
+bool has_reached_point = false; // è®°å½•æ˜¯å¦å·²ç»åˆ°è¾¾äº†å½“å‰ç‚¹
+uint16 count5 = 0;              // å¤ç°æ¨¡å¼å¼€å¯åï¼Œç­‰å¾… n s å†å‡ºå‘
+
+#define Get_Dot_Loc (2) // æ‰“ç‚¹è·ç¦» 2cm
+#define Buffer_Max_Num          (8000) // 12é¡µï¼Œæ¯ä¸€é¡µ 1024 ä¸ª uint32 ç±»å‹æ•°æ®ï¼Œå­˜å‚¨ 8000 ä¸ªèˆªå‘è§’
+uint32 Record_Index = 0;               // è®°å½•æ¨¡å¼çš„ç´¢å¼•ï¼Œä¹Ÿéœ€è¦å­˜å‚¨åˆ° Flash ä¸­
+float My_Flash_Buffer[Buffer_Max_Num]; // å­˜æ”¾æ‰“ç‚¹æ•°æ®
+bool is_recording = false;             // è®°å½•æ¨¡å¼ï¼Œé»˜è®¤å…³é—­
+uint8 page = 0;                        // å½“å‰ä½¿ç”¨çš„ flash é¡µ
+uint32 Save_To_Buffer_Index = 0;       // å­˜å…¥ flash çš„ç´¢å¼•
+float Car_Go_Location = 0;             // å°è½¦å‰è¿›çš„ä½ç½®
+
+void Save_Data_To_Flash(void) // å­˜å‚¨æ•°æ®åˆ° flash å‡½æ•°
 {
-    float x;
-    float y;
-} nav_spot;
+  Save_To_Buffer_Index = 0; // æ¸…ç©ºå½“å‰å­˜å‚¨çš„è§’åº¦æ‰“ç‚¹
 
-// Flash ´æ´¢ÅäÖÃ
-#define MAX_PATH_POINTS_PER_PAGE     500
-#define MAX_PATH_POINTS              6000
-#define MAX_PAGE_COUNTS              12
+  // 0. å…ˆæ£€æŸ¥ä¸€ä¸‹ç¼“å­˜æ•°ç»„é‡Œæœ‰æ²¡æœ‰ç‚¹éœ€è¦å­˜å…¥ flash
+  if (Record_Index == 0)
+    return;
 
-nav_spot gps_buffer[MAX_PATH_POINTS];       // Â·¾¶µã»º³åÇø
-uint16 path_point_count = 0;                // ÒÑ¼ÇÂ¼µÄµãÊı
+  uint16 temp_all_points = (uint16)Record_Index;
 
-// ¼ÇÂ¼/¸´ÏÖ±êÖ¾
-bool is_recording = false;
-bool is_replaying = false;
-bool is_replay_only_once = true;
+  // 1. é¦–å…ˆï¼Œè®¡ç®—éœ€è¦å­˜å‚¨å‡ é¡µ
+  uint8 To_Save_Page_Count = (uint8)(Record_Index / 1000) + 1;
 
-// ¸´ÏÖÓÃ±äÁ¿
-uint32 replay_current_count = 0;
-uint32 replay_sum_count = 0;
-#define Replay_Speed    11
-#define PRE_LOOK_COUNT  7
-#define REACH_THRESHOLD 12.0f
+  // 2. ç„¶åï¼Œæ“¦é™¤æ•°æ®å¯¹åº”çš„ flash é¡µç 
+  for (uint8 i = 0; i < To_Save_Page_Count; i++) {
+    if (flash_check(0, i) == 1)
+      flash_erase_page(0, i);
+  }
+  flash_buffer_clear();
 
-// Ô­ÓĞ±äÁ¿¼æÈİ
-float Car_Go_Location = 0;
-bool is_clear_loc = false;
-bool has_reached_point = false;
-uint16 count5 = 0;
+  // 3. å¼€å§‹å­˜å‚¨æ•°æ®
+  for (uint8 i = 0; i < To_Save_Page_Count; i++) {
+    uint16 Save_Temp_Count =
+        (uint16)(Record_Index > 1000 ? 1000 : Record_Index); // åˆ¤æ–­ä¸€ä¸‹è¿™ä¸€è½®å¾ªç¯è¦å­˜å¤šå°‘ä¸ªç‚¹ï¼Œæœ€å¤§
+                                                             // 1000
+    flash_union_buffer[0].uint16_type =
+        Save_Temp_Count; // æ¯ä¸€é¡µè¦å­˜å¤šå°‘ä¸ªç‚¹æ”¾åœ¨æ¯ä¸€é¡µçš„ç¬¬ 0 ä½
+    // å­˜å…¥è§’åº¦æ•°æ®ï¼Œæ¯ä¸€é¡µæœ€å¤§å­˜æ”¾ 1000 ä¸ªè§’åº¦
+    for (uint16 j = 1; j <= Save_Temp_Count; j++) {
+      flash_union_buffer[j].float_type =
+          My_Flash_Buffer[Save_To_Buffer_Index]; // ä»ç¬¬ 1 ä¸ªä½ç½®å¼€å§‹å­˜ yaw è§’
+      Save_To_Buffer_Index++;
+    }
+    flash_write_page_from_buffer(0, i); // å°†æ•°æ®å†™å…¥ flash çš„ç¬¬ i é¡µ
+    flash_buffer_clear();               // ç„¶åæ¸…ç©ºä¸€ä¸‹ç¼“å­˜åŒºå‡†å¤‡ä¸‹ä¸€æ¬¡
+    Record_Index -= Save_Temp_Count;    // æ›´æ–°å‰©ä½™è¦å­˜å‚¨çš„ç‚¹æ•°
+  }
+  printf("å…±å­˜å‚¨äº† %d ä¸ªç‚¹\r\n", temp_all_points);
+}
+
+bool is_replaying = false;       // å¤ç°æ¨¡å¼ï¼Œé»˜è®¤å…³é—­
+bool is_replay_only_once = true; // ä¿è¯æ‰“å¼€å¼€å…³ï¼Œåªå¤ç°ä¸€æ¬¡
+uint32 curr_point = 0;           // å½“å‰æ‰“ç‚¹åºå·
+#define Replay_Speed (13)        // å¤ç°æ—¶å‰è¿›é€Ÿåº¦
+
+uint32 pre_look_point = 0; // å‰ç»ç›®æ ‡ç‚¹
+#define PRE_LOOK_COUNT (12) // å‰ç»è·ç¦»: n ä¸ªç›®æ ‡ç‚¹
+
 bool wait_for_a_while = false;
-#define Get_Dot_Loc     (2)           // ÈÔÈ»±£³ÖÃ¿ 2cm ´æÒ»¸öµãµÄÏ°¹ß
 
-/*------------------------ º¯ÊıÉùÃ÷ ------------------------*/
-void Save_Path_To_Flash(void);
-bool is_reading_flash(void);
-void replay_the_path(void);
+void Read_the_flash(void) // è¯»å– flash æ•°æ®
+{
+  Save_To_Buffer_Index = 0;
 
-// ³õÊ¼»¯Öğ·ÉÖúÊÖÊ¾²¨Æ÷
+  // 1. é¦–å…ˆæ£€æŸ¥ flash ä¸­æœ‰å‡ é¡µæ•°æ®
+  uint8 Detect_Count = 0;
+  for (int i = 0; i < 12; i++) {
+    if (flash_check(0, i) == 1)
+      Detect_Count++;
+  }
+
+  // 2. å°† flash æ•°æ®è¯»å–å‡ºæ¥
+  for (int i = 0; i < Detect_Count; i++) {
+    flash_read_page_to_buffer(0, i); // æŠŠç¬¬ i é¡µçš„ flash æ•°æ®è¯»å…¥å…¨å±€å˜é‡ç¼“å­˜
+    uint16 To_Save_Count_This_Paper =
+        flash_union_buffer[0].uint16_type; // è¯»å–è¿™ä¸€é¡µä¸­æœ‰å¤šå°‘ä¸ªæ•°æ®
+    for (int j = 1; j <= To_Save_Count_This_Paper; j++) {
+      My_Flash_Buffer[Save_To_Buffer_Index] =
+          flash_union_buffer[j].float_type; // å°†æ•°æ®å­˜åˆ°è‡ªå·±çš„ç¼“å­˜æ•°ç»„é‡Œ
+      Save_To_Buffer_Index++;
+    }
+  }
+  printf("å¤ç°æ¨¡å¼è¯»å–äº† %d ä¸ªæ‰“ç‚¹æ•°æ®\r\n", (int)Save_To_Buffer_Index);
+}
+
+void Replay_the_path(void) // è·¯å¾„å¤ç°å‡½æ•°
+{
+  // æ£€æŸ¥æ˜¯å¦è¿½å®Œäº†æ‰€æœ‰çš„ç‚¹
+  if (curr_point >= Save_To_Buffer_Index) {
+    LED1_ON();
+    LED2_ON();
+    LED3_ON();
+    LED4_ON();
+    is_replaying = false;
+    PID_Flag = false;    // å…³é—­ PIDï¼Œé˜²æ­¢ç”µæœºä¹±è½¬
+    DifSpeed_Target = 0; // å·®é€Ÿæ¸…é›¶
+    Target_AveSpeed = 0; // ä¹‹å‰æ¼æ‰äº†ï¼å¤ç°ç›®æ ‡é€Ÿåº¦ä¹Ÿè¦æ¸…é›¶ï¼
+    SpeedPID_L.Out = 0;  // å¼ºåˆ¶è¾“å‡ºä¸º 0
+    SpeedPID_R.Out = 0;
+    printf("å¤ç°ç»“æŸ!\r\n");
+    return;
+  } else {
+    LED4_ON();
+    LED2_ON();
+    Target_AveSpeed = Replay_Speed;               // è®¾ç½®å¤ç°é€Ÿåº¦
+    pre_look_point = curr_point + PRE_LOOK_COUNT; // å¯»æ‰¾å‰ç»ç›®æ ‡ç‚¹
+    if (pre_look_point >= Save_To_Buffer_Index)   // å‰ç»ç›®æ ‡è¾¹ç•Œä¿æŠ¤
+    {
+      pre_look_point = Save_To_Buffer_Index - 1;
+    }
+    // è§’åº¦ç¯ è§’åº¦ç›®æ ‡å€¼æ›´æ–° è¿½è¸ªå‰ç»ç›®æ ‡ç‚¹çš„ yaw è§’
+    AnglePID.Target = My_Flash_Buffer[pre_look_point];
+
+    // åªæœ‰å½“æ²¡æœ‰åˆ°è¾¾ç›®æ ‡ç‚¹çš„æƒ…å†µä¸‹ï¼Œæ‰åŠ ä½ç½®
+    if (Car_Go_Location >= Get_Dot_Loc && has_reached_point == false) {
+      curr_point++;
+      is_clear_loc = true;
+      has_reached_point = true; // æ ‡å¿—ä½ï¼Œè¯´æ˜æˆ‘å·²ç»åˆ°è¾¾äº†ï¼Œç­‰å®šæ—¶å™¨å¸®æˆ‘æ¸…ç©º
+      //            printf(">>> Reach Point %d\r\n", (int)curr_point);
+    }
+  }
+}
+
+/*------------------------å¾ªè¿¹ç®—æ³•å˜é‡------------------------*/
+
+// å®ä¾‹åŒ–è¾…åŠ©ç¤ºæ³¢å™¨ç”¨çš„ç»“æ„ä½“
 seekfree_assistant_oscilloscope_struct oscilloscope_data;
 
-// **************************** ´úÂëÇøÓò ****************************
-int core0_main(void)
-{
-    clock_init();
-    debug_init();
-    Car_Init();
-    Encoder_Init();
-    LED_Init();
-    PID_Init(&SpeedPID_L);
-    PID_Init(&SpeedPID_R);
-    PID_Init(&AnglePID);
-    Switch_Init();
+// **************************** ä¸»å‡½æ•° ****************************
+int core0_main(void) {
+  clock_init(); // è·å–æ—¶é’Ÿé¢‘ç‡ <åŠ¡å¿…ä¿ç•™>
+  debug_init(); // åˆå§‹åŒ–é»˜è®¤è°ƒè¯•ä¸²å£
 
-    Yaw_Kalman_Filter_Init(0.01, 1.5);
-    seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
-    oscilloscope_data.channel_num = 1;                                      // Ñ¡Ôñ²¨ĞÎÏÔÊ¾ÊıÁ¿
+  /* åº•ç›˜åˆå§‹åŒ– */
+  Car_Init();
 
-    while(1) {
-        if(imu660rc_init(IMU660RC_QUARTERNION_120HZ)) {
-            printf("\r\n IMU660RC init error.");
-        } else {
-            printf("\r\n IMU660RC init right.");
-            break;
-        }
-    }
+  /* ç¼–ç å™¨åˆå§‹åŒ– */
+  Encoder_Init();
 
-    pit_ms_init(PIT_NUM, 1);
-    Fuya_Speed(0);
-    PID_Flag = false;
-    bool is_send_once = true;
+  /* led åˆå§‹åŒ– */
+  LED_Init();
 
-    while (TRUE)
-    {
-        /*------------------------ °´¼üÂß¼­ ------------------------*/
-        if(is_recording == false && is_init_angle_done)
-        {
-            if(Switch1_Get() == 1)              // ¿ªÆô¼ÇÂ¼Ä£Ê½
-            {
-                is_recording = true;
-                if(is_send_once)
-                {
-                    printf("\r\n>>> Start Recording XY Path...\r\n");
-                    is_use_fuya = false;
-                    is_send_once = false;
-                }
-                PID_Flag = false;
-                LED1_ON();LED2_ON();LED3_ON();LED4_ON();
+  /* PID åˆå§‹åŒ– */
+  PID_Init(&SpeedPID_L);
+  PID_Init(&SpeedPID_R);
+  PID_Init(&AnglePID);
 
-                // ÇåÁã×ø±ê
-                path_point_count = 0;
-                x_sum = 0; y_sum = 0;
-                encoder_right_loc = 0; encoder_left_loc = 0;
-                Car_Go_Location = 0;
-            }
-        }
-        else if(is_recording == true)               // ¹Ø±Õ¼ÇÂ¼Ä£Ê½
-        {
-            if(Switch1_Get() == 0)
-            {
-                is_recording = false;
-                LED1_OFF();LED2_OFF();LED3_OFF();LED4_OFF();
-                printf("Í£Ö¹¼ÇÂ¼£¡×¼±¸´æ´¢... µ±Ç°µãÊı: %d\r\n", path_point_count);
-                Save_Path_To_Flash();
-                printf("´æ´¢³É¹¦!\r\n");
-                is_send_once = true;            // »Ö¸´±êÖ¾Î»ÒÔ±ãÏÂ´Î¼ÇÂ¼
-            }
-        }
+  /* æ‹¨ç å¼€å…³åˆå§‹åŒ– */
+  Switch_Init();
 
-        if(is_replaying == false && is_replay_only_once == true && is_init_angle_done)
-        {
-            if(Switch2_Get() == 1)                  // ¿ªÆô¸´ÏÖÄ£Ê½
-            {
-                is_replaying = true;
-                PID_Flag = true;
-                is_use_fuya = true;
-                printf("¸´ÏÖ¿ªÊ¼£¬µÈ´ı...\r\n");
-                is_replay_only_once = false;
+  /*
+      è°ƒå¤§ Q æˆ–å‡å° R --------> å“åº”åŠ å¿« / è°ƒå¤§ R æˆ–å‡å° Q --------> å“åº”å˜å¹³æ»‘
+  */
+  Yaw_Kalman_Filter_Init(0.01, 1.5);
 
-                if(is_reading_flash())
-                {
-                    // ¶ÁÈ¡³É¹¦£¬³õÊ¼»¯
-                    x_sum = 0; y_sum = 0;
-                    replay_current_count = 0;
-                    encoder_right_loc = 0; encoder_left_loc = 0;
-                    Car_Go_Location = 0;
-                    is_clear_loc = false;
-                    has_reached_point = false;
-                    wait_for_a_while = false;
-                    count5 = 0;
-                    Target_AveSpeed = 0;
-                    // ¡¾Â©ÁËÕâÁ½¾ä¼«Æä¹Ø¼üµÄ´úÂë£¡¼ÓÉÏËüÃÇ£¡¡¿
-                    // °Ñ·ÅÏÂµÄÕâÒ»Ë²¼äÇ¿ÖÆÉèÎª³µÍ· 0 ¶È
-                    Target_init_angle = KalMan_Yaw;
-                    yaw = 0;
-                    // ¡¾±ØĞëĞŞ¸Ä¡¿£º°ÑÏÂÃæÕâÁ½ĞĞ¸ÄÎª 0
-                    Target_Angle = 0;
-                    AnglePID.Target = 0;
-                    AnglePID.Out = 0;
-                    DifSpeed_Target = 0;
-                }
-                else
-                {
-                    // ¶ÁÈ¡Ê§°Ü
-                    is_replaying = false;
-                    is_replay_only_once = true;
-                }
-            }
-        }
+  // é€é£åŠ©æ‰‹åˆå§‹åŒ–ï¼Œä½¿ç”¨ DEBUG ä¸²å£è¿›è¡Œæ”¶å‘
+  seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
+  oscilloscope_data.channel_num = 5; // è®¾ç½®æ˜¾ç¤ºé€šé“æ•°é‡ï¼Œè¿™é‡Œæœ€å¤§æ”¯æŒ 8 ä¸ªé€šé“
 
-        if(is_replaying)
-        {
-            if(wait_for_a_while) replay_the_path();
-        }
-
-        /*----------------------- ½Ç¶È»·²¨ĞÎ -----------------------*/
-//       oscilloscope_data.data[0] = AnglePID.Actual;                             // ÏÔÊ¾ AnglePID.Actual
-//       oscilloscope_data.data[1] = AnglePID.Target;                             // ÏÔÊ¾ AnglePID.Target
-//       oscilloscope_data.data[2] = SpeedPID_R.Out;                              // ÏÔÊ¾ AnglePID.Out
-//       oscilloscope_data.data[3] = SpeedPID_L.Out;                              // ÏÔÊ¾ SpeedPID_L.Out
-//       oscilloscope_data.data[4] = AnglePID.Out;                                // ÏÔÊ¾ SpeedPID_R.Out
-        /*----------------------- ½Ç¶È»·²¨ĞÎ -----------------------*/
-
-        /*----------------------- ËÙ¶È»·²¨ĞÎ -----------------------*/
-//        oscilloscope_data.data[0] = SpeedPID_R.Actual;                             // ÏÔÊ¾ SpeedPID_R.Actual
-//        oscilloscope_data.data[1] = SpeedPID_R.Target;                             // ÏÔÊ¾ SpeedPID_R.Target
-//        oscilloscope_data.data[2] = SpeedPID_R.Out;                                // ÏÔÊ¾ SpeedPID_R.Out
-       /*----------------------- ËÙ¶È»·²¨ĞÎ -----------------------*/
-
-        /*----------------------- ÁÙÊ±²¨ĞÎÏÔÊ¾ -----------------------*/
-
-       /*----------------------- ÁÙÊ±²¨ĞÎÏÔÊ¾ -----------------------*/
-
-/*------------------------ Öğ·ÉÉÏÎ»»úÎŞÏßµ÷²Î ------------------------*/
-//       seekfree_assistant_data_analysis();
-//        for(uint8_t i = 0; i < SEEKFREE_ASSISTANT_SET_PARAMETR_COUNT; i++)
-//        {
-//            if(seekfree_assistant_parameter_update_flag[i])
-//            {
-//                seekfree_assistant_parameter_update_flag[i] = 0;
-//                printf("receive data channel : %d ", i);
-//                printf("data : %f ", seekfree_assistant_parameter[i]);
-//                printf("\r\n");
-//            }
-//        }
-       /*----------------------- ËÙ¶È»·²ÎÊı -----------------------*/
-//       SpeedPID_R.Kp = seekfree_assistant_parameter[0];
-//       SpeedPID_R.Ki = seekfree_assistant_parameter[1];
-//       SpeedPID_R.Target = seekfree_assistant_parameter[2];
-       /*----------------------- ËÙ¶È»·²ÎÊı -----------------------*/
-
-        /*----------------------- ½Ç¶È»·²ÎÊı -----------------------*/
-//        AnglePID.Kp = seekfree_assistant_parameter[0];
-//        AnglePID.GKD = seekfree_assistant_parameter[1];
-//        AnglePID.KP2 = seekfree_assistant_parameter[2];
-        /*-----------------------½Ç¶È»·²ÎÊı -----------------------*/
-
-/*------------------------ ·¢ËÍ²¨ĞÎ ------------------------*/
-//       seekfree_assistant_oscilloscope_send(&oscilloscope_data);
-    }
-}
-
-// PID ÖĞ¶Ïº¯Êı --> 1ms ¶¨Ê±ÖĞ¶Ï
-IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
-{
-    interrupt_global_enable(0);
-    static uint16 Count1 = 0;
-    static uint16 Count2 = 0;
-    static uint16 Count6 = 0;
-
-    Count1++; Count2++;
-
-    if(is_waiting_done == false) Count6 ++;
-    if(Count6 >= 2000) {is_waiting_done = true; Count6 = 0;}
-
-    if(is_replaying && wait_for_a_while == false) count5++;
-    if(count5 >= 3000) {
-        wait_for_a_while = true; count5 = 0;
-        printf(">>> µÈ´ı½áÊø£¬¿ªÊ¼ÅÜ³µ£¡\r\n");
-    }
-
-    /* ÄÚ»·£ºËÙ¶È»· PID µ÷¿ØÖÜÆÚ 2ms */
-    if(Count1 >= 2)
-    {
-        Count1 = 0;
-        Encoder_Get();
-        Encoder_Get_Speed();
-        Encoder_Get_Location();
-
-        Car_Go_Location = 1.0*(encoder_right_loc + encoder_left_loc) / 2;
-
-        if(is_clear_loc == true)
-        {
-            is_clear_loc = false;
-            encoder_right_loc = 0; encoder_left_loc = 0;
-            Car_Go_Location = 0;
-            has_reached_point = false;
-        }
-
-        LeftSpeed = encoder_left_speed;
-        RightSpeed = encoder_right_speed;
-        AveSpeed = (LeftSpeed+RightSpeed) / 2.0;
-        DifSpeed_Actual = LeftSpeed - RightSpeed;
-
-        SpeedPID_L.Actual = LeftSpeed;
-        SpeedPID_R.Actual = RightSpeed;
-
-        // ½ÓÈëÈ«¾ÖÄ¿±êËÙ¶È ºÍ ½Ç¶È»·Êä³öµÄ²îËÙ
-        SpeedPID_L.Target = Target_AveSpeed + DifSpeed_Target;
-        SpeedPID_R.Target = Target_AveSpeed - DifSpeed_Target;
-
-        /*------------------------ ¹ßµ¼¼ÆËã£¨¼ÇÂ¼+¸´ÏÖÍ¨ÓÃ£© ------------------------*/
-        if(is_recording || is_replaying)
-        {
-            float distance_delta = (encoder_right_loc_delta + encoder_left_loc_delta) / 2.0;
-            rad_angle = yaw * PI / 180.0f;
-
-            x_delta = distance_delta * sinf(rad_angle);
-            y_delta = distance_delta * cosf(rad_angle);
-            x_sum += x_delta;
-            y_sum += y_delta;
-
-            if(is_recording)
-            {
-                if(Car_Go_Location >= Get_Dot_Loc)
-                {
-                    encoder_right_loc = 0; encoder_left_loc = 0;
-                    Car_Go_Location = 0;
-
-                    if(path_point_count < MAX_PATH_POINTS)
-                    {
-                        gps_buffer[path_point_count].x = x_sum;
-                        gps_buffer[path_point_count].y = y_sum;
-                        path_point_count++;
-                    }
-                }
-            }
-        }
-
-        if(PID_Flag)
-        {
-            PID_Update_Incremental(&SpeedPID_L);
-            PID_Update_Incremental(&SpeedPID_R);
-        }
-
-        if(SpeedPID_L.Out > 0) Left_Go_Forward(SpeedPID_L.Out);
-        else if(SpeedPID_L.Out < 0) Left_Go_Back(-SpeedPID_L.Out);
-        else Left_Go_Forward(0);
-
-        if(SpeedPID_R.Out > 0) Right_Go_Forward(SpeedPID_R.Out);
-        else if(SpeedPID_R.Out < 0) Right_Go_Back(-SpeedPID_R.Out);
-        else Right_Go_Forward(0);
-    }
-
-    /* Íâ»·£º½Ç¶È»· PID µ÷¿ØÖÜÆÚ 5ms */
-    if(Count2 >= 5)
-    {
-        Count2 = 0;
-        KalMan_Yaw = Kalman_Filter_Yaw_Update(imu660rc_yaw);
-        yaw = KalMan_Yaw - Target_init_angle; // Ïà¶Ô½Ç¶È
-
-        if(is_waiting_done == true && is_set_once == false)
-        {
-            Target_init_angle = KalMan_Yaw;         // µÃ³ö³õÊ¼½Ç¶È
-            yaw = KalMan_Yaw - Target_init_angle;   // Ïà¶Ô½Ç¶È
-            AnglePID.Target = yaw;                  // ÉèÖÃÄ¿±ê½Ç¶È
-            is_init_angle_done = true;
-            is_set_once = true;
-            PID_Flag = true;
-            printf("\r\n>>> ³õÊ¼½Ç¶ÈÒÑ¶ÔÆë: %.2f\r\n", Target_init_angle);
-        }
-
-        if(PID_Flag)
-        {
-            AnglePID.Actual = yaw;
-
-            // 1. Îó²î·À²øÈÆ¼ÆËãÇø (Ê¹ÓÃ Target - Actual ±£³ÖºÍPID¿âÄÚ²¿Ò»ÖÂµÄ·ûºÅ)
-            error_angle = AnglePID.Target - AnglePID.Actual;
-
-            // Îó²î½â¾íÈÆ (Wrap-around)£¬Ç¿ÖÆÀ­»Ø×î¶ÌÂ·¾¶
-            while (error_angle > 180.0f) {
-                error_angle -= 360.0f;
-            }
-            while (error_angle < -180.0f) {
-                error_angle += 360.0f;
-            }
-
-            // 2. ½«ĞŞ¼ôºóµÄÕæÊµÎó²îËÍÈë PID ¿ØÖÆÆ÷
-            if(fabs(error_angle) > 1.0)
-            {
-                // ¡¾ºËĞÄÂß¼­£º±äÁ¿ÆÛÆ­·¨¡¿
-                // Ôİ´æÔ­ÊıÖµ£¬ÒÔÃâÆÆ»µÊ¾²¨Æ÷µÄ²¨ĞÎ¹Û²ì
-                float original_target = AnglePID.Target;
-
-                // Î±×°±äÁ¿£ºÈÃ PID µ×²ãËã³öÀ´µÄ p->Target - p->Actual Ç¡ºÃµÈÓÚĞŞ¼ôºÃµÄ error_angle
-                AnglePID.Target = error_angle;
-                AnglePID.Actual = 0;
-
-                // Ö´ĞĞ¿ØÖÆ¼ÆËã
-                PID_Update_Double_P(&AnglePID);
-
-                // ¼ÆËãÍê±Ï£¬»ğËÙ»Ö¸´ÏÖ³¡
-                AnglePID.Target = original_target;
-                AnglePID.Actual = yaw;
-            }
-            else
-            {
-                AnglePID.Out = 0.0;
-            }
-            DifSpeed_Target = AnglePID.Out;
-        }
-    }
-    pit_clear_flag(CCU61_CH0);
-}
-
-/*------------------------ ºËĞÄ¹¦ÄÜº¯Êı ------------------------*/
-
-/**
- * @brief ´æ´¢Â·¾¶µ½ Flash (XY ½á¹¹Ìå°æ±¾)
- */
-void Save_Path_To_Flash(void)
-{
-    uint32 remain_path_points = path_point_count;
-    if(remain_path_points == 0 || remain_path_points > MAX_PATH_POINTS) {
-        printf("Êı¾İÒì³£!\r\n"); return;
-    }
-
-    uint32 global_index = 0;
-    int page = 0;
-    printf("¿ªÊ¼´æ´¢...\r\n");
-
-    for(page = 0; page < MAX_PAGE_COUNTS; page++)
-    {
-        if(remain_path_points == 0) break;
-
-        flash_erase_page(0, page);
-        flash_buffer_clear();
-
-        uint32 current_page_points = remain_path_points > MAX_PATH_POINTS_PER_PAGE ? MAX_PATH_POINTS_PER_PAGE : remain_path_points;
-        flash_union_buffer[0].uint32_type = current_page_points;
-
-        for(int i = 0; i < current_page_points; i++)
-        {
-            uint32 save_index = 1 + 2 * i;
-            flash_union_buffer[save_index].float_type = gps_buffer[global_index].x;
-            flash_union_buffer[save_index + 1].float_type = gps_buffer[global_index].y;
-            global_index++;
-        }
-
-        flash_write_page_from_buffer(0, page);
-        printf("µÚ %d Ò³´æÁË %d ¸öµã\r\n", (int)page, (int)current_page_points);
-        remain_path_points -= current_page_points;
-    }
-    printf("´æ´¢Íê±Ï£¬¹² %d Ò³\r\n", page);
-}
-
-/**
- * @brief ´Ó Flash ¶ÁÈ¡Â·¾¶
- */
-bool is_reading_flash(void)
-{
-    uint32 global_index = 0;
-    replay_sum_count = 0;
-    printf("¿ªÊ¼¶ÁÈ¡...\r\n");
-
-    for(int page = 0; page < MAX_PAGE_COUNTS; page++)
-    {
-        if(flash_check(0, page) == 0) break;
-
-        flash_buffer_clear();
-        flash_read_page_to_buffer(0, page);
-
-        uint32 replay_page_count = flash_union_buffer[0].uint32_type;
-        replay_sum_count += replay_page_count;
-
-        if(replay_page_count > MAX_PATH_POINTS_PER_PAGE || replay_sum_count > MAX_PATH_POINTS) {
-            printf("Êı¾İÒç³ö!\r\n"); return false;
-        }
-
-        for(int i = 0; i < replay_page_count; i++)
-        {
-            uint32 points_index = 1 + 2 * i;
-            gps_buffer[global_index].x = flash_union_buffer[points_index].float_type;
-            gps_buffer[global_index].y = flash_union_buffer[points_index + 1].float_type;
-            if(global_index < 3) {
-                printf("µã %d: (%.2f, %.2f)\r\n", (int)global_index, gps_buffer[global_index].x, gps_buffer[global_index].y);
-            }
-            global_index++;
-        }
-        printf("µÚ %d Ò³¶ÁÈ¡Íê³É\r\n", page);
-    }
-
-    if(replay_sum_count > 0) {
-        printf("¶ÁÈ¡³É¹¦£¬¹² %d ¸öµã\r\n", (int)replay_sum_count);
-        return true;
+  // imu åˆå§‹åŒ–
+  while (1) {
+    if (imu660rc_init(IMU660RC_QUARTERNION_120HZ)) {
+      printf("\r\n IMU660RC init error.");
     } else {
-        printf("¶ÁÈ¡Ê§°Ü\r\n");
-        return false;
+      printf("\r\n IMU660RC init right.");
+      break;
     }
+  }
+
+  /* å®šæ—¶å™¨åˆå§‹åŒ– */
+  pit_ms_init(PIT_NUM, 1); // åˆå§‹åŒ– CCU6_1_CH0 ä¸ºå‘¨æœŸä¸­æ–­ 1ms é¢‘ç‡
+
+  //    cpu_wait_event_ready(); // ç­‰å¾…æ‰€æœ‰æ ¸å¿ƒåˆå§‹åŒ–å®Œæ¯•
+
+  //    Fuya_Speed(20);          // è´Ÿå‹è¿è¡Œï¼Œ20%
+
+  PID_Flag = false; // PID å¼€å¯æ ‡å¿—ä½
+
+  bool is_send_once = true; // è®°å½•æ¨¡å¼è¿›å…¥æç¤ºï¼Œåªæ‰“å°ä¸€æ¬¡ï¼Œä¸é‡å¤æ‰“å°
+
+  //     SpeedPID_L.Target = 0;
+  //     SpeedPID_R.Target = 0;         // åˆå§‹é€Ÿåº¦ç¯ç›®æ ‡å€¼
+
+  while (TRUE) {
+    //        printf("test\r\n");
+    //        if(mt9v03x_finish_flag)
+    //        {
+    //            Image_Binarization();
+    //            scan_border();
+    //            mt9v03x_finish_flag = 0;
+    //        }
+    //        Center_line[]
+
+    //        if(is_use_fuya) Fuya_Speed(20);
+    //        else Fuya_Speed(0);
+
+    if (is_recording == false &&
+        is_init_angle_done) // å¦‚æœä¸åœ¨è®°å½•æ¨¡å¼ä¸­ä¸”å·²ç»è¯»å–äº†åˆå§‹è§’åº¦å€¼
+    {
+      if (Switch1_Get() == 1) // æ£€æµ‹å¼€å…³ 1
+      {
+        is_recording = true; // è¿›å…¥è®°å½•æ¨¡å¼
+        if (is_send_once) {
+          printf("\r\nå¼€å§‹è®°å½•!\r\n");
+          is_use_fuya = false;
+          is_send_once = false;
+        }
+        PID_Flag = false;
+        LED1_ON();
+        LED2_ON();
+        LED3_ON();
+        LED4_ON(); // ç‚¹äº® LED1234
+
+        Record_Index = 0;      // è®°å½•ç‚¹æ•°æ¸…é›¶
+        encoder_right_loc = 0; // ç¼–ç å™¨è®¡ç¨‹æ¸…é›¶
+        encoder_left_loc = 0;
+        Car_Go_Location = 0; // ä½ç½®å˜é‡æ¸…é›¶
+      }
+    } else if (is_recording ==
+               true) // å¦‚æœæ­£åœ¨è¿›è¡Œè®°å½•æ¨¡å¼ï¼Œé‚£å°±æ£€æŸ¥æ˜¯å¦è¦å…³é—­è®°å½•æ¨¡å¼
+    {
+      if (Switch1_Get() == 0) {
+        is_recording = false; // å…³é—­è®°å½•æ¨¡å¼
+        LED1_OFF();
+        LED2_OFF();
+        LED3_OFF();
+        LED4_OFF(); // ç†„ç­ LED1 2 3 4
+
+        printf("åœæ­¢è®°å½•å¹¶å‡†å¤‡å­˜å‚¨...\r\n");
+        printf("å½“å‰ Record_Index = %d\r\n", (int)Record_Index);
+        printf("å‰ 3 ä¸ªæ‰“ç‚¹çš„è§’åº¦: [0]=%.2f, [1]=%.2f, [2]=%.2f\r\n",
+               My_Flash_Buffer[0], My_Flash_Buffer[1], My_Flash_Buffer[2]);
+
+        Save_Data_To_Flash();
+        printf("å­˜å‚¨æˆåŠŸ!\r\n");
+      }
+    }
+    if (is_replaying == false && is_replay_only_once == true &&
+        is_init_angle_done) // æ£€æµ‹å¤ç°æ¨¡å¼ä¸”å·²ç»æ‹¿åˆ°äº†åˆå§‹è§’åº¦å€¼
+    {
+      if (Switch2_Get() == 1) {
+        is_replaying = true; // è¿›å…¥å¤ç°æ¨¡å¼
+        PID_Flag = true;
+        is_use_fuya = true;
+        printf("å¤ç°å¼€å§‹ï¼Œç­‰å¾… 1.5s...\r\n");
+        is_replay_only_once = false;
+        Read_the_flash();
+        curr_point = 0;        // å½“å‰ç‚¹åºå·æ¸…é›¶
+        encoder_right_loc = 0; // ç¼–ç å™¨è®¡ç¨‹æ¸…é›¶
+        encoder_left_loc = 0;
+        Car_Go_Location = 0;       // ä½ç½®å˜é‡æ¸…é›¶
+        is_clear_loc = false;      // æ ‡å¿—ä½å¤ä½
+        has_reached_point = false; // ä¿æŠ¤ä¸€ä¸‹ï¼Œå¼ºåˆ¶å¤ä½
+        wait_for_a_while = false;
+        count5 = 0;
+        Target_AveSpeed = 0;
+        Target_Angle = Target_init_angle;
+        AnglePID.Target = Target_init_angle;
+        AnglePID.Out = 0; // å¼ºåˆ¶è§’åº¦ç¯è¾“å‡º
+        DifSpeed_Target = 0;
+      }
+    }
+
+    if (is_replaying) {
+      if (wait_for_a_while)
+        Replay_the_path();
+    }
+
+    /* ç¤ºæ³¢å™¨æ˜¾ç¤ºé€šé“ */
+    /*-----------------------è§’åº¦ç¯æ³¢å½¢-----------------------*/
+    //       oscilloscope_data.data[0] = AnglePID.Actual; // æ˜¾ç¤º
+    //       AnglePID.Actual oscilloscope_data.data[1] = AnglePID.Target; //
+    //       æ˜¾ç¤º AnglePID.Target oscilloscope_data.data[2] = SpeedPID_R.Out; //
+    //       æ˜¾ç¤º AnglePID.Out oscilloscope_data.data[3] = SpeedPID_L.Out; //
+    //       æ˜¾ç¤º SpeedPID_L.Out oscilloscope_data.data[4] = AnglePID.Out; //
+    //       æ˜¾ç¤º SpeedPID_R.Out
+    /*-----------------------è§’åº¦ç¯æ³¢å½¢-----------------------*/
+
+    /*-----------------------é€Ÿåº¦ç¯æ³¢å½¢-----------------------*/
+    //        oscilloscope_data.data[0] = SpeedPID_L.Actual; // æ˜¾ç¤º
+    //        AnglePID.Actual oscilloscope_data.data[1] = SpeedPID_L.Target; //
+    //        æ˜¾ç¤º AnglePID.Target oscilloscope_data.data[2] = SpeedPID_L.Out;
+    //        // æ˜¾ç¤º AnglePID.Out
+    /*-----------------------é€Ÿåº¦ç¯æ³¢å½¢-----------------------*/
+
+    /*------------------------é€é£ä¸Šä½æœºæ— çº¿è°ƒå‚------------------------*/
+    // æ¯æ¬¡é€šè¿‡æ¥æ”¶ä¸­æ–­æ¥æ”¶æ•°æ®
+    //       seekfree_assistant_data_analysis();
+    //        // è°ƒå‚
+    //        for(uint8_t i = 0; i < SEEKFREE_ASSISTANT_SET_PARAMETR_COUNT; i++)
+    //        {
+    //            // æ›´æ–°æ ‡å¿—ä½
+    //            if(seekfree_assistant_parameter_update_flag[i])
+    //            {
+    //                seekfree_assistant_parameter_update_flag[i] = 0;
+    //
+    //                // é€šè¿‡ DEBBUG ä¸²å£åé¦ˆä¿¡æ¯
+    //                printf("receive data channel : %d ", i);
+    //                printf("data : %f ", seekfree_assistant_parameter[i]);
+    //                printf("\r\n");
+    //            }
+    //        }
+    //        æ ¹æ®é€šé“é€‰æ‹©
+    /*-----------------------è§’åº¦ç¯å‚æ•°-----------------------*/
+    //        AnglePID.Kp = seekfree_assistant_parameter[0];
+    //        AnglePID.KP2 = seekfree_assistant_parameter[1];
+    //        AnglePID.GKD = seekfree_assistant_parameter[2];
+    //        AnglePID.Target = seekfree_assistant_parameter[3];
+    /*-----------------------è§’åº¦ç¯å‚æ•°-----------------------*/
+
+    /*-----------------------é€Ÿåº¦ç¯å‚æ•°-----------------------*/
+    //       SpeedPID_L.Kp = seekfree_assistant_parameter[0];
+    //       SpeedPID_L.Ki = seekfree_assistant_parameter[1];
+    //       SpeedPID_L.Target = seekfree_assistant_parameter[2];
+    /*-----------------------é€Ÿåº¦ç¯å‚æ•°-----------------------*/
+
+    /*------------------------é€é£ä¸Šä½æœºæ— çº¿è°ƒå‚------------------------*/
+
+    /*æœ€åå‘é€ç»™ä¸Šä½æœºéœ€è¦æ˜¾ç¤ºæ³¢å½¢çš„å€¼*/
+    //       seekfree_assistant_oscilloscope_send(&oscilloscope_data);
+
+    // æ­¤å¤„å¯ä»¥å†™éœ€è¦å¾ªç¯æ‰§è¡Œçš„ä»£ç 
+  }
 }
 
-//void replay_the_path(void)
-//{
-//    // =========================================================================
-//    // 1. ¡¾ºËĞÄĞŞ¸´¡¿£º¶¯Ì¬Ñ°ÕÒµ±Ç°³µÉí×î½üµÄÂ·¾¶µã£¨»¬¶¯´°¿Ú·¨£¬³¹µ×½â¾öÇĞÍäÂ©µãËÀËø£©
-//    // =========================================================================
-//    // ÍùÇ°·½ÕÒ 25 ¸öµã£¨´óÔ¼ 50cm µÄ´°¿Ú£©£¬¿´¿´ÄÄ¸öµãÀë³µ×î½ü
-//    uint32 search_end = replay_current_count + 10;
-//    if (search_end > replay_sum_count) search_end = replay_sum_count;
-//
-//    float min_dist = 99999.0f;
-//    uint32 best_index = replay_current_count;
-//
-//    for (uint32 i = replay_current_count; i < search_end; i++)
-//    {
-//        float dx = gps_buffer[i].x - x_sum;
-//        float dy = gps_buffer[i].y - y_sum;
-//        float d = sqrtf(dx*dx + dy*dy);
-//        if (d < min_dist)
-//        {
-//            min_dist = d;
-//            best_index = i;
-//        }
-//    }
-//
-//    // ×Ô¶¯½«µ±Ç°Ë÷Òı¸üĞÂÎªÎïÀí×î½üµã£¡ÄÄÅÂÇĞÍäÂ©µôÁËÖ±½Ç¶¥µã£¬ËüÒ²»á×Ô¶¯Ìø¹ı²¢¸úÉÏ£¡
-//    replay_current_count = best_index;
-//
-//    // =========================================================================
-//    // 2. ÖÕµã°²È«ÅĞ¶¨Âß¼­£º¿´×î½üµãÊÇ·ñµ½´ïÄ©Î²£¬ÇÒÕæµÄ½øÈëÁËÍ£³µÈ¦
-//    // =========================================================================
-//    if(replay_current_count >= replay_sum_count - 2)
-//    {
-//        // ËãÒ»ÏÂÀë¾ø¶ÔÖÕµãµÄ¾àÀë
-//        float end_dx = gps_buffer[replay_sum_count-1].x - x_sum;
-//        float end_dy = gps_buffer[replay_sum_count-1].y - y_sum;
-//        float dist_to_end = sqrtf(end_dx*end_dx + end_dy*end_dy);
-//
-//        if (dist_to_end < REACH_THRESHOLD) // ÕæÕıµ½´ïÁËÖÕµã 10cm ÄÚ
-//        {
-//            is_replaying = false;
-//            Target_AveSpeed = 0;
-//            DifSpeed_Target = 0;
-//            PID_Flag = false;
-//
-//            // Çå¿Õ¶³½áÊä³ö£¬°²È«Í£³µ
-//            SpeedPID_L.Out = 0;
-//            SpeedPID_R.Out = 0;
-//            AnglePID.Out = 0;
-//            Left_Go_Forward(0);
-//            Right_Go_Forward(0);
-//
-//            printf("¸´ÏÖÍêÃÀµ½´ïÖÕµã!\r\n");
-//            return;
-//        }
-//    }
-//
-//    // =========================================================================
-//    // 3. Õı³£¸ú×Ù¼ÆËã
-//    // =========================================================================
-//    // ¼ÆËãÇ°ÊÓµã
-//    uint32 Look_Ahead_Index = replay_current_count + PRE_LOOK_COUNT;
-//    if(Look_Ahead_Index >= replay_sum_count) Look_Ahead_Index = replay_sum_count - 1;
-//
-//    // ¼ÆËãÄ¿±ê¾ø¶Ô½Ç¶È
-//    float look_dx = gps_buffer[Look_Ahead_Index].x - x_sum;
-//    float look_dy = gps_buffer[Look_Ahead_Index].y - y_sum;
-//    float target_rad = atan2f(look_dx, look_dy);
-//    float target_deg = target_rad * 180.0f / PI;
-//
-//    // ¸³Öµ¿ØÖÆ
-//    Target_AveSpeed = Replay_Speed;
-//    AnglePID.Target = target_deg;
-//
-//    // µ÷ÊÔ´òÓ¡
-//    static int debug_cnt = 0;
-//    if(debug_cnt++ >= 100) {
-//        debug_cnt = 0;
-//        printf("Idx:%d | Pos(%.1f,%.1f) | TgtDeg:%.1f | MinDist:%.1f\r\n",
-//               (int)replay_current_count, x_sum, y_sum, target_deg, min_dist);
-//    }
-//}
+// PID ä¸­æ–­å‡½æ•° --> 1ms å®šæ—¶ä¸­æ–­
+IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
+  interrupt_global_enable(0); // å¼€å¯ä¸­æ–­åµŒå¥—
+  static uint16 Count1 = 0;   // é€Ÿåº¦ç¯ PID å‘¨æœŸè®¡æ•°
+  static uint16 Count2 = 0;   // è§’åº¦ç¯ PID å‘¨æœŸè®¡æ•°
+  static uint16 Count6 = 0; // åˆå§‹åŒ– 0.5s åï¼Œè¯»å–å½“å‰è§’åº¦å€¼ä½œä¸ºå¼€å§‹è§’åº¦ç›®æ ‡å€¼
+  static uint16 Count7 = 0; // å ç©ºæ¯”è®¡æ•°
 
-void replay_the_path(void)
-{
-    // =========================================================================
-    // 1. ÖÕµã°²È«Í£³µÅĞ¶¨£¨ÏÈÅĞ¶ÏÊÇ·ñ¸ÃÏÂ°àÁË£©
-    // =========================================================================
-    if(replay_current_count >= replay_sum_count - 2)
+  Count1++;
+  Count2++;
+
+  // 3s é«˜ç”µå¹³è„‰å†²è®¡æ•°
+  Count7++;
+  if (Count7 >= 3000 && high_duty_time == false) {
+    Count7 = 0;
+    high_duty_time = true;
+  }
+
+  // 0.5s ç¡®å®šåˆå§‹è§’åº¦
+  if (is_waiting_done == false) {
+    Count6++;
+  }
+  if (Count6 >= 500) {
+    is_waiting_done = true;
+    Count6 = 0;
+  }
+
+  // 3s ç­‰å¾…ï¼Œéœ€è¦ä¸€ä¸ªä»é™æ­¢åˆ°åŠ¨è¿‡ç¨‹
+  if (is_replaying && wait_for_a_while == false)
+    count5++;
+  if (count5 >= 3000) {
+    wait_for_a_while = true;
+    count5 = 0;
+    printf(">>> ç­‰å¾…ç»“æŸï¼Œå¼€å§‹å¥”è·‘å§\r\n"); // å¢åŠ æ‰“å°æç¤º
+  }
+
+  /* å†…ç¯ é€Ÿåº¦ç¯ PID è®¡ç®—é¢‘ç‡ 2ms */
+  if (Count1 >= 2) // 2ms
+  {
+    Count1 = 0;
+    // 1. è·å–ç¼–ç å™¨æ•°å€¼
+    Encoder_Get();          // è·å–ç¼–ç å™¨åŸå§‹å€¼
+    Encoder_Get_Speed();    // è·å–è½¬é€Ÿ
+    Encoder_Get_Location(); // è·å–ä½ç½®
+
+    Car_Go_Location =
+        1.0 * (encoder_right_loc + encoder_left_loc) / 2; // è®¡ç®—å°è½¦å‰è¿›è·ç¦» cm
+    if (is_clear_loc == true) {
+      is_clear_loc = false;
+      encoder_right_loc = 0;
+      encoder_left_loc = 0;
+      Car_Go_Location = 0;
+      has_reached_point = false; // æ ‡å¿—ä½å¤ä½ï¼šä½ç½®å®Œæˆï¼Œå¯ä»¥å»ä¸‹ä¸€ä¸ªç‚¹äº†
+    }
+
+    LeftSpeed = encoder_left_speed;   // è·å–å·¦ç”µæœºé€Ÿåº¦
+    RightSpeed = encoder_right_speed; // è·å–å³ç”µæœºé€Ÿåº¦
+
+    AveSpeed = (LeftSpeed + RightSpeed) / 2.0; // é€Ÿåº¦è½¬æ¢
+    DifSpeed_Actual = LeftSpeed - RightSpeed;  // é€Ÿåº¦è½¬æ¢
+
+    SpeedPID_L.Actual = LeftSpeed;  // è®¾ç½®å®é™…é€Ÿåº¦
+    SpeedPID_R.Actual = RightSpeed; // è®¾ç½®å®é™…é€Ÿåº¦
+
+    // é€Ÿåº¦ç¯ é€Ÿåº¦ç›®æ ‡å€¼æ›´æ–°
+    SpeedPID_L.Target = Target_AveSpeed + DifSpeed_Target;
+    SpeedPID_R.Target = Target_AveSpeed - DifSpeed_Target;
+
+    /*------------------------å¾ªè¿¹æ‰“ç‚¹é€»è¾‘------------------------*/
+    if (is_recording) // å¦‚æœæ­£åœ¨è®°å½•æ¨¡å¼
     {
-        float end_dx = gps_buffer[replay_sum_count-1].x - x_sum;
-        float end_dy = gps_buffer[replay_sum_count-1].y - y_sum;
-        if (sqrtf(end_dx*end_dx + end_dy*end_dy) < REACH_THRESHOLD)
+      if (Car_Go_Location >= Get_Dot_Loc) // å¦‚æœå°è½¦ä½ç½®å¤§äºç­‰äºæ‰“ç‚¹è·ç¦»
+      {
+        encoder_right_loc = 0;
+        encoder_left_loc = 0;              // æ¸…ç©ºå°è½¦å½“å‰ä½ç½®
+        Car_Go_Location = 0;               // åŒæ—¶åŒæ­¥æ¸…é›¶
+        if (Record_Index < Buffer_Max_Num) // å¦‚æœç¼“å­˜æ•°ç»„è¿˜æœ‰ç©ºä½™ä½ç½®
         {
-            is_replaying = false;
-            Target_AveSpeed = 0; DifSpeed_Target = 0; PID_Flag = false;
-            SpeedPID_L.Out = 0; SpeedPID_R.Out = 0; AnglePID.Out = 0;
-            Left_Go_Forward(0); Right_Go_Forward(0);
-            printf("¸´ÏÖÍêÃÀµ½´ïÖÕµã!\r\n");
-            return;
+          // è®°å½•å½“å‰çš„ yaw è§’ï¼Œå¹¶å­˜å‚¨åˆ° flash æ•°ç»„ä¸­
+          My_Flash_Buffer[Record_Index] = KalMan_Yaw; // å­˜å‚¨ yaw è§’
+          Record_Index++;
+        } else {
+          printf("æ²¡æœ‰ç©ºä½™ä½ç½®äº†ï¼\r\n");
         }
+      }
+    }
+    /*------------------------å¾ªè¿¹æ‰“ç‚¹é€»è¾‘------------------------*/
+
+    // 2. é€Ÿåº¦ç¯ PID æ›´æ–°
+    if (PID_Flag) {
+      PID_Update_Incremental(&SpeedPID_L); // æ›´æ–°é€Ÿåº¦ç¯æ§åˆ¶
+      PID_Update_Incremental(&SpeedPID_R); // æ›´æ–°é€Ÿåº¦ç¯æ§åˆ¶
     }
 
-    // =========================================================================
-    // 2. ¶¯Ì¬Ñ°ÕÒ×î½üµã£¨·À¶ªÊ§£©
-    // =========================================================================
-    uint32 search_end = replay_current_count + 15; // ÕÒ 30cm ÄÚµÄ×î½üµã
-    if (search_end > replay_sum_count) search_end = replay_sum_count;
+    if (SpeedPID_L.Out > 0) {
+      Left_Go_Forward(SpeedPID_L.Out);
+    } else if (SpeedPID_L.Out < 0) {
+      Left_Go_Back(-SpeedPID_L.Out);
+    } else {
+      Left_Go_Forward(0);
+    }
+    if (SpeedPID_R.Out > 0) {
+      Right_Go_Forward(SpeedPID_R.Out);
+    } else if (SpeedPID_R.Out < 0) {
+      Right_Go_Back(-SpeedPID_R.Out);
+    } else {
+      Right_Go_Forward(0);
+    }
+  }
 
-    float min_dist = 99999.0f;
-    uint32 best_index = replay_current_count;
+  /* å¤–ç¯ è§’åº¦ç¯ PID è®¡ç®—é¢‘ç‡ 5ms */
+  if (Count2 >= 5) {
+    Count2 = 0;
 
-    for (uint32 i = replay_current_count; i < search_end; i++)
+    KalMan_Yaw = Kalman_Filter_Yaw_Update(imu660rc_yaw); // è·å–å½“å‰ yaw è§’
+    Gyro_z = imu660rc_gyro_transition(imu660rc_gyro_z);  // è·å–å½“å‰è§’é€Ÿåº¦å€¼
+    Filtered_Gyro_z =
+        Alpha * Gyro_z + (1 - Alpha) * Filtered_Gyro_z; // ä¸€é˜¶ä½é€šæ»¤æ³¢
+    AnglePID.gyro_z = Filtered_Gyro_z;                  // æ›´æ–°è§’åº¦ç¯çš„è§’åº¦å€¼
+
+    if (is_waiting_done == true && is_set_once == false) // è®¾ç½®åˆå§‹è§’åº¦ 0.5s
     {
-        float dx = gps_buffer[i].x - x_sum;
-        float dy = gps_buffer[i].y - y_sum;
-        float d = sqrtf(dx*dx + dy*dy);
-        if (d < min_dist) { min_dist = d; best_index = i; }
+      Target_init_angle = KalMan_Yaw;
+      AnglePID.Target = Target_init_angle;
+      is_init_angle_done = true;
+      PID_Flag = true; // è¡¥å……ï¼šè·å–åˆ°åˆå§‹è§’åº¦ï¼Œæ‰å¼€å¯ PID
+      printf("\r\n>>> åˆå§‹è§’åº¦å·²é”å®š: %.2f, PID å·²å¼€å¯\r\n", Target_init_angle);
+      is_set_once = true;
     }
-    replay_current_count = best_index;
 
-    // =========================================================================
-        // 3. ¡¾¼«¼ò×·×ÙºËĞÄ¡¿£º¿³µô³¤Ç°ÊÓ£¬Ö»¶¢×¡ÑÛÇ° 3 ¸öµã£¨6cm£©µÄÎ»ÖÃ
-        // =========================================================================
-        uint32 target_index = replay_current_count + 3;
-        if (target_index >= replay_sum_count) target_index = replay_sum_count - 1;
+    // åªæœ‰ä¸­æ–­å¼€å¯
+    if (PID_Flag) {
+      // è§’åº¦ç¯å®é™…å€¼æ›´æ–°
+      AnglePID.Actual = KalMan_Yaw;
 
-        float look_dx = gps_buffer[target_index].x - x_sum;
-        float look_dy = gps_buffer[target_index].y - y_sum;
-        float target_rad = atan2f(look_dx, look_dy);
+      // è®¡ç®—åå·®
+      error_angle = AnglePID.Actual - AnglePID.Target;
 
-        // ÉèÖÃÄ¿±ê½Ç¶È
-        AnglePID.Target = target_rad * 180.0f / PI;
-
-        // ¡¾ĞÂÔö¾øÕĞ£ºÍäµÀ×ÔÊÊÓ¦½µËÙ (Corner Braking)¡¿
-        // ¼ÆËãµ±Ç°½Ç¶È»·µ½µ×Êä³öÁË¶à´óµÄ×ªÏòÁ¦£¨È¡¾ø¶ÔÖµ£©
-        float turn_effort = fabs(AnglePID.Out);
-
-        // ÓÃ»ù´¡ËÙ¶È¼õÈ¥×ªÏòÁ¦µÄÒ»²¿·Ö¡£×ªÍäÔ½¼±£¬Ç°½øËÙ¶ÈÔ½Âı£¡
-        // 0.4 ÊÇ¸ö×èÄáÏµÊı£¬Äã¿ÉÒÔÎ¢µ÷Ëü¡£
-        float current_forward_speed = Replay_Speed - turn_effort * 0.4f;
-
-        // ±£Ö¤²»Òªµ¹³µ
-        if(current_forward_speed < 0) current_forward_speed = 0;
-
-        // ¸³Öµ×îÖÕËÙ¶È
-        Target_AveSpeed = current_forward_speed;
-
-        static int debug_cnt = 0;
-        if(debug_cnt++ >= 100) {
-            debug_cnt = 0;
-            printf("Idx:%d | Pos(%.1f,%.1f) | TgtDeg:%.1f | FwdSpd:%.1f\r\n",
-                   (int)replay_current_count, x_sum, y_sum, AnglePID.Target, current_forward_speed);
-        }
+      // åå·®è¶…è¿‡ 1 åº¦æ—¶å¯ç”¨ PID æ§åˆ¶
+      if (fabs(error_angle) > 1) {
+        PID_Update_Double_P(&AnglePID);
+        //                PID_Update_Positional(&AnglePID);
+      } else {
+        AnglePID.Out = 0.0;
+      }
+      DifSpeed_Target = AnglePID.Out;
     }
+  }
+  pit_clear_flag(CCU61_CH0);
+}
 
 #pragma section all restore
-
-
-
-
-
+// **************************** ä¸»å‡½æ•° ****************************

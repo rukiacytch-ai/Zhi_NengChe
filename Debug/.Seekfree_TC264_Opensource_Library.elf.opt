@@ -4,7 +4,7 @@
 "-Wl-Ot"
 "-Wl-Ox"
 "-Wl-Oy"
-"D:\Infineon\AURIX-Studio-1.10.32\AURIX-Studio-1.10.32-workspace\Seekfree_TC264_Opensource_Library\libraries\zf_device\zf_device_config.a"
+"D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Seekfree_TC264_Opensource_Library/libraries/zf_device/zf_device_config.a"
 "-Wl--map-file=Seekfree_TC264_Opensource_Library.map"
 "-Wl-mc"
 "-Wl-mf"
@@ -195,3 +195,4 @@
 "code/Switch.o"
 "code/figure.o"
 "code/scan_line.o"
+"test.o"

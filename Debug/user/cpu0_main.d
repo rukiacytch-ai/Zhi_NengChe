@@ -1,5 +1,7 @@
 cpu0_main.o :	../user/cpu0_main.c
 ../user/cpu0_main.c :
+cpu0_main.o :	..\user\isr_config.h
+..\user\isr_config.h :
 cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_headfile.h"
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_headfile.h" :
 cpu0_main.o :	"D:\Infineon\AURIX-Studio-1.10.32\tools\Compilers\Tasking_1.1r8\ctc\include\math.h"
@@ -174,8 +176,6 @@ cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspac
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_font.h" :
 cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_function.h"
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_function.h" :
-cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\user\isr_config.h"
-"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\user\isr_config.h" :
 cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_driver\zf_driver_adc.h"
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_driver\zf_driver_adc.h" :
 cpu0_main.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_driver\zf_driver_delay.h"

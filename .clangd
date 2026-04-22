@@ -1,0 +1,7 @@
+Diagnostics:
+  UnusedIncludes: None
+  Limit: 0
+  Suppress: ["expected_fn_body", "unknown_type", "drv_unknown_argument"]
+
+Index:
+  Background: Build
