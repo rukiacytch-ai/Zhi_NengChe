@@ -20,7 +20,7 @@ float KalMan_Yaw = 0;
 
 /*------------------------ PID 参数变量------------------------*/
 /* PID 速度环输出限幅 */
-#define MAX_SPEED (5000)
+#define MAX_SPEED (7000)
 
 /* 左轮速度环 PID */
 PID_t SpeedPID_L = {
@@ -49,15 +49,15 @@ PID_t SpeedPID_R = {
 /* 角度环 PID */
 PID_t AnglePID = {
     .Kp = 0.11,
-    .Kd = 0.015,
+    .Kd = 0.021,
     .GKD = 0.05,
-    .KP2 = 0.005,
+    .KP2 = 0.001,
 
     //    .Kp = 0.1,
     //    .Kd = 2,
 
-    .OutMax = 30,
-    .OutMin = -30,
+    .OutMax = 50,
+    .OutMin = -50,
 };
 
 // 初始化 0.5s 后，读取当前角度值作为目标角度值
@@ -287,7 +287,8 @@ int core0_main(void)
     //        if(is_use_fuya) Fuya_Speed(20);
     //        else Fuya_Speed(0);
 
-//      Car_go_forward(4000);
+//      Right_Go_Forward(2000);
+//      Left_Go_Forward(2000);
 
     if (is_recording == false && is_init_angle_done) // 如果不在记录模式中且已经读取了初始角度值
     {
