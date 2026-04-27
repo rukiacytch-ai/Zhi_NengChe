@@ -1,7 +1,13 @@
 Diagnostics:
   UnusedIncludes: None
   Limit: 0
-  Suppress: ["expected_fn_body", "unknown_type", "drv_unknown_argument"]
+  Suppress: 
+    - "expected_fn_body"
+    - "unknown_type"
+    - "drv_unknown_argument"
+    - "redefinition_different_type"
+    - "typedef_redefinition"
+    - "invalid_reference_to_bitfield"
 
 Index:
-  Background: Build
+  Background: Skip

@@ -18,14 +18,18 @@ float KalMan_Yaw = 0;
 
 /*------------------------这里是处理变量------------------------*/
 
-/*------------------------PID 参数变量------------------------*/
+/*------------------------ PID 参数变量------------------------*/
 /* PID 速度环输出限幅 */
 #define MAX_SPEED (5000)
 
 /* 左轮速度环 PID */
 PID_t SpeedPID_L = {
-    .Kp = 31.8,
-    .Ki = 5.8,
+//    .Kp = 31.8,
+//    .Ki = 5.8,
+//    .Kd = 0.0,
+
+    .Kp = 80.0,
+    .Ki = 8.0,
     .Kd = 0.0,
 
     .OutMax = MAX_SPEED,
@@ -34,8 +38,8 @@ PID_t SpeedPID_L = {
 
 /* 右轮速度环 PID */
 PID_t SpeedPID_R = {
-    .Kp = 31.8,
-    .Ki = 5.8,
+    .Kp = 80.0,
+    .Ki = 8.0,
     .Kd = 0.0,
 
     .OutMax = MAX_SPEED,
@@ -44,16 +48,16 @@ PID_t SpeedPID_R = {
 
 /* 角度环 PID */
 PID_t AnglePID = {
-    .Kp = 0.07,
-    .Kd = 0.0,
-    .GKD = 0.050,
-    .KP2 = 0.002,
+    .Kp = 0.11,
+    .Kd = 0.015,
+    .GKD = 0.05,
+    .KP2 = 0.005,
 
     //    .Kp = 0.1,
     //    .Kd = 2,
 
-    .OutMax = 20,
-    .OutMin = -20,
+    .OutMax = 30,
+    .OutMin = -30,
 };
 
 // 初始化 0.5s 后，读取当前角度值作为目标角度值
@@ -138,10 +142,10 @@ void Save_Data_To_Flash(void) // 存储数据到 flash 函数
 bool is_replaying = false;       // 复现模式，默认关闭
 bool is_replay_only_once = true; // 保证打开开关，只复现一次
 uint32 curr_point = 0;           // 当前打点序号
-#define Replay_Speed (13)        // 复现时前进速度
+#define Replay_Speed (11)        // 复现时前进速度
 
 uint32 pre_look_point = 0; // 前瞻目标点
-#define PRE_LOOK_COUNT (12) // 前瞻距离: n 个目标点
+#define PRE_LOOK_COUNT (0) // 前瞻距离: n 个目标点
 
 bool wait_for_a_while = false;
 
@@ -214,7 +218,8 @@ void Replay_the_path(void) // 路径复现函数
 seekfree_assistant_oscilloscope_struct oscilloscope_data;
 
 // **************************** 主函数 ****************************
-int core0_main(void) {
+int core0_main(void)
+{
   clock_init(); // 获取时钟频率 <务必保留>
   debug_init(); // 初始化默认调试串口
 
@@ -238,7 +243,7 @@ int core0_main(void) {
   /*
       调大 Q 或减小 R --------> 响应加快 / 调大 R 或减小 Q --------> 响应变平滑
   */
-  Yaw_Kalman_Filter_Init(0.01, 1.5);
+  Yaw_Kalman_Filter_Init(0.01, 0.8);
 
   // 逐飞助手初始化，使用 DEBUG 串口进行收发
   seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
@@ -246,7 +251,7 @@ int core0_main(void) {
 
   // imu 初始化
   while (1) {
-    if (imu660rc_init(IMU660RC_QUARTERNION_120HZ)) {
+    if (imu660rc_init(IMU660RC_QUARTERNION_240HZ)) {
       printf("\r\n IMU660RC init error.");
     } else {
       printf("\r\n IMU660RC init right.");
@@ -259,7 +264,7 @@ int core0_main(void) {
 
   //    cpu_wait_event_ready(); // 等待所有核心初始化完毕
 
-  //    Fuya_Speed(20);          // 负压运行，20%
+//  Fuya_Speed(20);          // 负压运行，20%
 
   PID_Flag = false; // PID 开启标志位
 
@@ -268,7 +273,8 @@ int core0_main(void) {
   //     SpeedPID_L.Target = 0;
   //     SpeedPID_R.Target = 0;         // 初始速度环目标值
 
-  while (TRUE) {
+  while (TRUE)
+  {
     //        printf("test\r\n");
     //        if(mt9v03x_finish_flag)
     //        {
@@ -281,13 +287,15 @@ int core0_main(void) {
     //        if(is_use_fuya) Fuya_Speed(20);
     //        else Fuya_Speed(0);
 
-    if (is_recording == false &&
-        is_init_angle_done) // 如果不在记录模式中且已经读取了初始角度值
+//      Car_go_forward(4000);
+
+    if (is_recording == false && is_init_angle_done) // 如果不在记录模式中且已经读取了初始角度值
     {
       if (Switch1_Get() == 1) // 检测开关 1
       {
         is_recording = true; // 进入记录模式
-        if (is_send_once) {
+        if (is_send_once)
+        {
           printf("\r\n开始记录!\r\n");
           is_use_fuya = false;
           is_send_once = false;
@@ -303,10 +311,11 @@ int core0_main(void) {
         encoder_left_loc = 0;
         Car_Go_Location = 0; // 位置变量清零
       }
-    } else if (is_recording ==
-               true) // 如果正在进行记录模式，那就检查是否要关闭记录模式
+    }
+    else if (is_recording == true) // 如果正在进行记录模式，那就检查是否要关闭记录模式
     {
-      if (Switch1_Get() == 0) {
+      if (Switch1_Get() == 0)
+      {
         is_recording = false; // 关闭记录模式
         LED1_OFF();
         LED2_OFF();
@@ -322,10 +331,10 @@ int core0_main(void) {
         printf("存储成功!\r\n");
       }
     }
-    if (is_replaying == false && is_replay_only_once == true &&
-        is_init_angle_done) // 检测复现模式且已经拿到了初始角度值
+    if (is_replaying == false && is_replay_only_once == true && is_init_angle_done) // 检测复现模式且已经拿到了初始角度值
     {
-      if (Switch2_Get() == 1) {
+      if (Switch2_Get() == 1)
+      {
         is_replaying = true; // 进入复现模式
         PID_Flag = true;
         is_use_fuya = true;
@@ -348,45 +357,44 @@ int core0_main(void) {
       }
     }
 
-    if (is_replaying) {
+    if (is_replaying)
+    {
       if (wait_for_a_while)
         Replay_the_path();
     }
 
     /* 示波器显示通道 */
     /*-----------------------角度环波形-----------------------*/
-    //       oscilloscope_data.data[0] = AnglePID.Actual; // 显示
-    //       AnglePID.Actual oscilloscope_data.data[1] = AnglePID.Target; //
-    //       显示 AnglePID.Target oscilloscope_data.data[2] = SpeedPID_R.Out; //
-    //       显示 AnglePID.Out oscilloscope_data.data[3] = SpeedPID_L.Out; //
-    //       显示 SpeedPID_L.Out oscilloscope_data.data[4] = AnglePID.Out; //
-    //       显示 SpeedPID_R.Out
+//           oscilloscope_data.data[0] = AnglePID.Actual;     // 显示AnglePID.Actual
+//           oscilloscope_data.data[1] = AnglePID.Target;     //显示 AnglePID.Target
+//           oscilloscope_data.data[2] = SpeedPID_R.Out;      //显示 AnglePID.Out
+//           oscilloscope_data.data[3] = SpeedPID_L.Out;      //显示 SpeedPID_L.Out
+//           oscilloscope_data.data[4] = AnglePID.Out;        //显示 SpeedPID_R.Out
     /*-----------------------角度环波形-----------------------*/
 
     /*-----------------------速度环波形-----------------------*/
-    //        oscilloscope_data.data[0] = SpeedPID_L.Actual; // 显示
-    //        AnglePID.Actual oscilloscope_data.data[1] = SpeedPID_L.Target; //
-    //        显示 AnglePID.Target oscilloscope_data.data[2] = SpeedPID_L.Out;
-    //        // 显示 AnglePID.Out
+//            oscilloscope_data.data[0] = SpeedPID_L.Actual; // 显示AnglePID.Actual
+//            oscilloscope_data.data[1] = SpeedPID_L.Target; //显示 AnglePID.Target
+//            oscilloscope_data.data[2] = SpeedPID_L.Out; // 显示 AnglePID.Out
     /*-----------------------速度环波形-----------------------*/
 
     /*------------------------逐飞上位机无线调参------------------------*/
     // 每次通过接收中断接收数据
-    //       seekfree_assistant_data_analysis();
-    //        // 调参
-    //        for(uint8_t i = 0; i < SEEKFREE_ASSISTANT_SET_PARAMETR_COUNT; i++)
-    //        {
-    //            // 更新标志位
-    //            if(seekfree_assistant_parameter_update_flag[i])
-    //            {
-    //                seekfree_assistant_parameter_update_flag[i] = 0;
-    //
-    //                // 通过 DEBBUG 串口反馈信息
-    //                printf("receive data channel : %d ", i);
-    //                printf("data : %f ", seekfree_assistant_parameter[i]);
-    //                printf("\r\n");
-    //            }
-    //        }
+//      seekfree_assistant_data_analysis();
+//      // 调参
+//      for(uint8_t i = 0; i < SEEKFREE_ASSISTANT_SET_PARAMETR_COUNT; i++)
+//      {
+//          // 更新标志位
+//          if(seekfree_assistant_parameter_update_flag[i])
+//          {
+//              seekfree_assistant_parameter_update_flag[i] = 0;
+//
+//              // 通过 DEBBUG 串口反馈信息
+//              printf("receive data channel : %d ", i);
+//              printf("data : %f ", seekfree_assistant_parameter[i]);
+//              printf("\r\n");
+//          }
+//       }
     //        根据通道选择
     /*-----------------------角度环参数-----------------------*/
     //        AnglePID.Kp = seekfree_assistant_parameter[0];
@@ -396,43 +404,38 @@ int core0_main(void) {
     /*-----------------------角度环参数-----------------------*/
 
     /*-----------------------速度环参数-----------------------*/
-    //       SpeedPID_L.Kp = seekfree_assistant_parameter[0];
-    //       SpeedPID_L.Ki = seekfree_assistant_parameter[1];
-    //       SpeedPID_L.Target = seekfree_assistant_parameter[2];
+//           SpeedPID_L.Kp = seekfree_assistant_parameter[0];
+//           SpeedPID_L.Ki = seekfree_assistant_parameter[1];
+//           SpeedPID_L.Target = seekfree_assistant_parameter[2];
     /*-----------------------速度环参数-----------------------*/
 
     /*------------------------逐飞上位机无线调参------------------------*/
 
     /*最后发送给上位机需要显示波形的值*/
-    //       seekfree_assistant_oscilloscope_send(&oscilloscope_data);
+//    seekfree_assistant_oscilloscope_send(&oscilloscope_data);
 
     // 此处可以写需要循环执行的代码
   }
 }
 
 // PID 中断函数 --> 1ms 定时中断
-IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
+IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
+{
   interrupt_global_enable(0); // 开启中断嵌套
   static uint16 Count1 = 0;   // 速度环 PID 周期计数
   static uint16 Count2 = 0;   // 角度环 PID 周期计数
   static uint16 Count6 = 0; // 初始化 0.5s 后，读取当前角度值作为开始角度目标值
-  static uint16 Count7 = 0; // 占空比计数
 
   Count1++;
   Count2++;
 
-  // 3s 高电平脉冲计数
-  Count7++;
-  if (Count7 >= 3000 && high_duty_time == false) {
-    Count7 = 0;
-    high_duty_time = true;
-  }
-
   // 0.5s 确定初始角度
-  if (is_waiting_done == false) {
+  if (is_waiting_done == false)
+  {
     Count6++;
   }
-  if (Count6 >= 500) {
+  if (Count6 >= 500)
+  {
     is_waiting_done = true;
     Count6 = 0;
   }
@@ -440,7 +443,8 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
   // 3s 等待，需要一个从静止到动过程
   if (is_replaying && wait_for_a_while == false)
     count5++;
-  if (count5 >= 3000) {
+  if (count5 >= 3000)
+  {
     wait_for_a_while = true;
     count5 = 0;
     printf(">>> 等待结束，开始奔跑吧\r\n"); // 增加打印提示
@@ -455,9 +459,9 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
     Encoder_Get_Speed();    // 获取转速
     Encoder_Get_Location(); // 获取位置
 
-    Car_Go_Location =
-        1.0 * (encoder_right_loc + encoder_left_loc) / 2; // 计算小车前进距离 cm
-    if (is_clear_loc == true) {
+    Car_Go_Location = 1.0 * (encoder_right_loc + encoder_left_loc) / 2; // 计算小车前进距离 cm
+    if (is_clear_loc == true)
+    {
       is_clear_loc = false;
       encoder_right_loc = 0;
       encoder_left_loc = 0;
@@ -478,6 +482,10 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
     SpeedPID_L.Target = Target_AveSpeed + DifSpeed_Target;
     SpeedPID_R.Target = Target_AveSpeed - DifSpeed_Target;
 
+    // 调参专用速度目标值
+//    SpeedPID_L.Target = 15;
+//    SpeedPID_R.Target = 15;
+
     /*------------------------循迹打点逻辑------------------------*/
     if (is_recording) // 如果正在记录模式
     {
@@ -491,7 +499,9 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
           // 记录当前的 yaw 角，并存储到 flash 数组中
           My_Flash_Buffer[Record_Index] = KalMan_Yaw; // 存储 yaw 角
           Record_Index++;
-        } else {
+        }
+        else
+        {
           printf("没有空余位置了！\r\n");
         }
       }
@@ -499,23 +509,34 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
     /*------------------------循迹打点逻辑------------------------*/
 
     // 2. 速度环 PID 更新
-    if (PID_Flag) {
+    if (PID_Flag)
+    {
       PID_Update_Incremental(&SpeedPID_L); // 更新速度环控制
       PID_Update_Incremental(&SpeedPID_R); // 更新速度环控制
     }
 
-    if (SpeedPID_L.Out > 0) {
+    if (SpeedPID_L.Out > 0)
+    {
       Left_Go_Forward(SpeedPID_L.Out);
-    } else if (SpeedPID_L.Out < 0) {
+    }
+    else if (SpeedPID_L.Out < 0)
+    {
       Left_Go_Back(-SpeedPID_L.Out);
-    } else {
+    }
+    else
+    {
       Left_Go_Forward(0);
     }
-    if (SpeedPID_R.Out > 0) {
+    if (SpeedPID_R.Out > 0)
+    {
       Right_Go_Forward(SpeedPID_R.Out);
-    } else if (SpeedPID_R.Out < 0) {
+    }
+    else if (SpeedPID_R.Out < 0)
+    {
       Right_Go_Back(-SpeedPID_R.Out);
-    } else {
+    }
+    else
+    {
       Right_Go_Forward(0);
     }
   }
@@ -541,7 +562,8 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
     }
 
     // 只有中断开启
-    if (PID_Flag) {
+    if (PID_Flag)
+    {
       // 角度环实际值更新
       AnglePID.Actual = KalMan_Yaw;
 
@@ -549,10 +571,13 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY) {
       error_angle = AnglePID.Actual - AnglePID.Target;
 
       // 偏差超过 1 度时启用 PID 控制
-      if (fabs(error_angle) > 1) {
+      if (fabs(error_angle) > 1)
+      {
         PID_Update_Double_P(&AnglePID);
-        //                PID_Update_Positional(&AnglePID);
-      } else {
+        // PID_Update_Positional(&AnglePID);
+      }
+      else
+      {
         AnglePID.Out = 0.0;
       }
       DifSpeed_Target = AnglePID.Out;

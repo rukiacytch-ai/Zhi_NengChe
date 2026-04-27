@@ -1,12 +1,12 @@
 --target=arm-none-eabi
 -m32
+-xc
 -include
-d:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Seekfree_TC264_Opensource_Library/clang_compat.h
+clang_compat.h
 -D__TASKING__
 -D__CPU__=tc26xb
---target=arm-none-eabi
--m32
--ID:/Infineon/AURIX-Studio-1.10.32/tools/Compilers/Tasking_1.1r8/ctc/include
+-I.
+-Iuser
 -Icode
 -Ilibraries
 -Ilibraries/infineon_libraries
@@ -76,7 +76,6 @@ d:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Seekfree_TC264_O
 -Ilibraries/zf_components
 -Ilibraries/zf_device
 -Ilibraries/zf_driver
--Iuser
 -IConfigurations
 -ILibraries
 -ILibraries/Infra
@@ -214,3 +213,8 @@ d:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Seekfree_TC264_O
 -ILibraries/iLLD/TC26B/Tricore/_Lib/DataHandling
 -ILibraries/iLLD/TC26B/Tricore/_Lib/InternalMux
 -ILibraries/iLLD/TC26B/Tricore/_PinMap
+-ID:/Infineon/AURIX-Studio-1.10.32/tools/Compilers/Tasking_1.1r8/ctc/include
+-Wno-unknown-pragmas
+-Wno-invalid-noreturn
+-Wno-microsoft-anon-tag
+-Wno-redefinition
