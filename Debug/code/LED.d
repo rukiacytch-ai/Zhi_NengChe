@@ -332,6 +332,10 @@ LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\See
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\Switch.h" :
 LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\LED.h"
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\LED.h" :
+LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\Key.h"
+"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\Key.h" :
+LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_headfile.h"
+"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\libraries\\zf_common\zf_common_headfile.h" :
 LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\figure.h"
 "D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\figure.h" :
 LED.o :	"D:\\Infineon\\AURIX-Studio-1.10.32\\AURIX-Studio-1.10.32-workspace\\Seekfree_TC264_Opensource_Library\\code\scan_line.h"

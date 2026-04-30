@@ -142,7 +142,7 @@ void Save_Data_To_Flash(void) // 存储数据到 flash 函数
 bool is_replaying = false;       // 复现模式，默认关闭
 bool is_replay_only_once = true; // 保证打开开关，只复现一次
 uint32 curr_point = 0;           // 当前打点序号
-#define Replay_Speed (11)        // 复现时前进速度
+#define Replay_Speed (14)        // 复现时前进速度
 
 uint32 pre_look_point = 0; // 前瞻目标点
 #define PRE_LOOK_COUNT (0) // 前瞻距离: n 个目标点
@@ -240,6 +240,9 @@ int core0_main(void)
   /* 拨码开关初始化 */
   Switch_Init();
 
+  /* 按键初始化 */
+  Key_Init();
+
   /*
       调大 Q 或减小 R --------> 响应加快 / 调大 R 或减小 Q --------> 响应变平滑
   */
@@ -287,12 +290,9 @@ int core0_main(void)
     //        if(is_use_fuya) Fuya_Speed(20);
     //        else Fuya_Speed(0);
 
-//      Right_Go_Forward(2000);
-//      Left_Go_Forward(2000);
-
     if (is_recording == false && is_init_angle_done) // 如果不在记录模式中且已经读取了初始角度值
     {
-      if (Switch1_Get() == 1) // 检测开关 1
+      if (Key_Get() == 1) // 检测按键1是否按下
       {
         is_recording = true; // 进入记录模式
         if (is_send_once)
@@ -315,7 +315,7 @@ int core0_main(void)
     }
     else if (is_recording == true) // 如果正在进行记录模式，那就检查是否要关闭记录模式
     {
-      if (Switch1_Get() == 0)
+      if (Key_Get() == 3)       // 检测按键3是否按下
       {
         is_recording = false; // 关闭记录模式
         LED1_OFF();
@@ -334,7 +334,7 @@ int core0_main(void)
     }
     if (is_replaying == false && is_replay_only_once == true && is_init_angle_done) // 检测复现模式且已经拿到了初始角度值
     {
-      if (Switch2_Get() == 1)
+      if (Key_Get() == 2)       // 检测按键二是否按下
       {
         is_replaying = true; // 进入复现模式
         PID_Flag = true;

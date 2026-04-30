@@ -14,7 +14,7 @@
 #define Right_Dir                   (P02_6)                         // 右轮方向端
 #define Left_PWM                   (ATOM0_CH5_P02_5)                // 左轮PWM
 #define Right_PWM                  (ATOM0_CH7_P02_7)                // 右轮PWM
-#define fuya_PWM                    (ATOM1_CH7_P00_8)                // 无刷PWM
+#define fuya_PWM                    (ATOM3_CH3_P00_12)                // 无刷PWM
 
 
 void Car_Init(void);
