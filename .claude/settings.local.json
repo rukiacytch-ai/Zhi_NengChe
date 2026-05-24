@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where python *)",
+      "Bash(where python3 *)",
+      "Bash(where py *)",
+      "Bash(py *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(head *)",
+      "Bash(cat *)",
+      "Bash(cd *)",
+      "Bash(for *)",
+      "Bash(echo *)",
+      "Bash(which *)",
+      "Bash(powershell *)",
+      "WebSearch",
+      "WebFetch",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(/c/Users/19929/AppData/Local/Programs/Python/Python313/python fix_indent.py)",
+      "Bash(/c/Users/19929/AppData/Local/Programs/Python/Python313/python -c ' *)",
+      "Bash(xxd)",
+      "Bash(xxd \"D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/user/cpu0_main.c\")",
+      "Bash(cmd //c \"python _edit_patch.py\")",
+      "Bash(xxd \"D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/code/PID.c\")"
+    ]
+  }
+}

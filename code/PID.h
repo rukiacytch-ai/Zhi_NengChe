@@ -10,26 +10,26 @@
 
 typedef struct
 {
-       float Target;
-       float Actual;
-       float Out;
+        float Target;
+        float Actual;
+        float Out;
 
-       float Error0;            // 当前误差
-       float Error1;            // 上一次的误差
-       float Error2;            // 上上一次的误差
+        float Error0;            // 当前误差
+        float Error1;            // 上一次的误差
+        float Error2;            // 上上一次的误差
 
-       float ErrorInt;          // 误差积分
+        float ErrorInt;          // 误差积分
 
-       float Kp;
-       float Ki;
-       float Kd;
+        float Kp;
+        float Ki;
+        float Kd;
 
-       float GKD;               // kd乘的参数
-       float gyro_z;            // 陀螺仪角速度值
-       float KP2;               
+        float GKD;               // kd乘的参数
+        float gyro_z;            // 陀螺仪角速度值
+        float KP2;               
 
-       float OutMax;
-       float OutMin;
+        float OutMax;
+        float OutMin;
 
 }PID_t;
 

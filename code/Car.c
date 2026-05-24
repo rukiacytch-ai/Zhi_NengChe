@@ -35,33 +35,39 @@ void Car_go_Back(uint16_t Speed)
 // 左轮正转
 void Left_Go_Forward(uint16 Speed)
 {
-    gpio_set_level(Left_Dir,0);
+    gpio_set_level(Left_Dir,1);
     pwm_set_duty(Left_PWM,Speed);
 }
 
 // 左轮反转
 void Left_Go_Back(uint16 Speed)
 {
-    gpio_set_level(Left_Dir,1);
+    gpio_set_level(Left_Dir,0);
     pwm_set_duty(Left_PWM,Speed);
 }
 
 // 右轮正转
 void Right_Go_Forward(uint16 Speed)
 {
-    gpio_set_level(Right_Dir,0);
+    gpio_set_level(Right_Dir,1);
     pwm_set_duty(Right_PWM,Speed);
 }
 
 // 右轮反转
 void Right_Go_Back(uint16 Speed)
 {
-    gpio_set_level(Right_Dir,1);
+    gpio_set_level(Right_Dir,0);
     pwm_set_duty(Right_PWM,Speed);
 }
 
+// 停车
+void Stop_Car(void)
+{
+    pwm_set_duty(Right_PWM,0);pwm_set_duty(Left_PWM,0);
+}
+
 /*
- * Speed的值在0到100之间
+ * 负压 Speed的值在0到100之间
  * */
 void Fuya_Speed(uint8 Speed)
 {

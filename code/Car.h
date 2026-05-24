@@ -25,6 +25,8 @@ void Left_Go_Forward(uint16 Speed);
 void Left_Go_Back(uint16 Speed);
 void Right_Go_Forward(uint16 Speed);
 void Right_Go_Back(uint16 Speed);
+void Stop_Car(void);
+
 void Fuya_Speed(uint8 Speed);
 
 

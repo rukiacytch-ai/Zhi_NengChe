@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.rt.hightec.agent.launcher.launchConfigurationType">
+    <stringAttribute key="ACC_HW" value="DAS JDS TriBoard TC3XX V2.0 TBAWYPEH"/>
+    <booleanAttribute key="ENABLE_AGENTLOG" value="false"/>
+    <booleanAttribute key="ENABLE_FLASHING" value="true"/>
+    <booleanAttribute key="ENABLE_STOPPING" value="true"/>
+    <stringAttribute key="EXECUTABLE_PATH" value="${workspace_loc}/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf"/>
+    <stringAttribute key="STOP_FUNCTION" value="core0_main"/>
+    <stringAttribute key="SVD" value="D:/Infineon/AURIX-Studio-1.10.32/build_system/bundled-artefacts-repo/svd/tc26xbpd/1.2-3/device.svd"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="Rukia_Crazy_Car"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+        <listEntry value="/Rukia_Crazy_Car"/>
+    </listAttribute>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+        <listEntry value="4"/>
+    </listAttribute>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_LOCATION" value="/Rukia_Crazy_Car/Rukia_Crazy_Car Debug.launch"/>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_PROJECT_NAME" value="Rukia_Crazy_Car"/>
+    <booleanAttribute key="org.eclipse.debug.ui.ATTR_SHARED" value="true"/>
+    <stringAttribute key="org.eclipse.tcf.debug.MemoryMap" value="[{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 0: CPU0 TriCore 1.6E&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;8eda2c70-ccc7-4318-85b4-f590298a4b1f&quot;},{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 0: CPU0 TriCore 1.6E&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;f0a5b51c-d1e5-4c81-8408-2103b3a4502c&quot;},{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 0: CPU0 TriCore 1.6E&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;50daf503-cf44-4f86-8e1a-c8b504f52c96&quot;},{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;3e783000-552c-4ddd-be23-0b263b3e58d6&quot;},{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 0: CPU0 TriCore 1.6E&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;0fb51ce3-0325-495b-a0c3-b2463fbd3e50&quot;},{&quot;FileName&quot;:&quot;D:/Infineon/AURIX-Studio-1.10.32/AURIX-Studio-1.10.32-workspace/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC3XX V2.0 TBAWYPEH/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;53b6890b-226d-469f-a583-3fbf93945614&quot;}]"/>
+    <stringAttribute key="org.eclipse.tcf.debug.PeerID" value="TCP:127.0.0.1:1534"/>
+    <stringAttribute key="org.eclipse.tcf.debug.ProjectName" value="Rukia_Crazy_Car"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalAgent" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalServer" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.UseLocalAgent" value="false"/>
+    <stringAttribute key="org.eclipse.tcf.debug.executable_name" value="${workspace_loc}/Rukia_Crazy_Car/Debug/Rukia_Crazy_Car.elf"/>
+    <stringAttribute key="sessionID" value="3bc36445-de89-4e01-b733-c3387957c5a7"/>
+</launchConfiguration>

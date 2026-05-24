@@ -32,30 +32,30 @@ void Encoder_Init(void)
 /*编码器计数获取   放进速度环PID调控内，2ms调用一次*/
 void Encoder_Get(void)
 {
-    encoder_data_dir_right = -encoder_get_count(ENCODER_DIR_Right);                          // 获取右轮编码器计数
-    encoder_data_dir_left = encoder_get_count(ENCODER_DIR_Left);                           // 获取左轮编码器计数
+    encoder_data_dir_right = encoder_get_count(ENCODER_DIR_Right);                          // 获取右轮编码器计数
+    encoder_data_dir_left = -encoder_get_count(ENCODER_DIR_Left);                           // 获取左轮编码器计数
     encoder_clear_count(ENCODER_DIR_Right);                                                 // 清空编码器计数
     encoder_clear_count(ENCODER_DIR_Left);                                                  // 清空编码器计数
 
     /*
-     * 速度计算方式:
-     *  1024线编码器，转一圈产生1024个脉冲（方向编码器）
-     *  车轮齿数和编码器齿数一致，轮毂齿数是车轮齿数的4倍
-     *  所以编码器转4圈，车轮才转一圈，即4096个脉冲车轮转一圈
-     *  每2ms获取一下编码器的计数，得到的就是 n个脉冲数/2ms
-     *  encoder_data_dir_right / 2ms -->  得到 n个脉冲数/s
-     *
-     *  4096个脉冲数代表一转
-     *  那么 encoder_data_dir_right / 2ms / 4096 即为 n转/s
-     *
-     * 位移获取方式：
-     *     首先获取轮子的周长 ： C = 2*PI*R
-     *     4096个脉冲数代表一转
-     *     还是每2ms获取一下脉冲数，获取的同时清除脉冲计数，那么获取到的脉冲数就是这2ms产生的新脉冲数
-     *     再用这个脉冲数差值/4096，得到的就是这2ms轮子转了多少圈（N圈）
-     *     再把圈数乘以轮子周长，即 N*C 即可得到2ms车子前进的距离
-     *     用一个变量累加这个距离，变量的最终值就是位移值
-     * */
+    * 速度计算方式:
+    *  1024线编码器，转一圈产生1024个脉冲（方向编码器）
+    *  车轮齿数和编码器齿数一致，轮毂齿数是车轮齿数的4倍
+    *  所以编码器转4圈，车轮才转一圈，即4096个脉冲车轮转一圈
+    *  每2ms获取一下编码器的计数，得到的就是 n个脉冲数/2ms
+    *  encoder_data_dir_right / 2ms -->  得到 n个脉冲数/s
+    *
+    *  4096个脉冲数代表一转
+    *  那么 encoder_data_dir_right / 2ms / 4096 即为 n转/s
+    *
+    * 位移获取方式：
+    *     首先获取轮子的周长 ： C = 2*PI*R
+    *     4096个脉冲数代表一转
+    *     还是每2ms获取一下脉冲数，获取的同时清除脉冲计数，那么获取到的脉冲数就是这2ms产生的新脉冲数
+    *     再用这个脉冲数差值/4096，得到的就是这2ms轮子转了多少圈（N圈）
+    *     再把圈数乘以轮子周长，即 N*C 即可得到2ms车子前进的距离
+    *     用一个变量累加这个距离，变量的最终值就是位移值
+    * */
 }
 
 /*2msPID调控周期下的转速，单位：n转/s*/

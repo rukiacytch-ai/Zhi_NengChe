@@ -10,6 +10,9 @@
 
 #pragma section all "cpu0_dsram"
 
+
+/* 按键从左往右依次是4321 */
+
 void Key_Init(void)
 {
     gpio_init(KEY1, GPI, 1, GPI_PULL_UP);       // 输入模式 初始高电平 上拉输入

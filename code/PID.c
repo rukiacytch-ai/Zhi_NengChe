@@ -62,8 +62,8 @@ void PID_Update_Positional(PID_t *p)
 
     // 位置式PID计算
     p->Out = p->Kp * p->Error0
-           + p->Ki * p->ErrorInt
-           + p->Kd * (p->Error0 - p->Error1);
+            + p->Ki * p->ErrorInt
+            + p->Kd * (p->Error0 - p->Error1);
 
     // 输出限幅
     if(p->Out > p->OutMax) p->Out = p->OutMax;
@@ -75,12 +75,33 @@ void PID_Update_Double_P(PID_t *p)
 {
     p->Error1 = p->Error0;                      // 上一次的角度偏差
     p->Error0 = p->Target - p->Actual;          // 这一次的角度偏差
+    while (p->Error0 > 180.0f)
+    {
+        p->Error0 -= 360.0f;
+    }
+    while (p->Error0 < -180.0f)
+    {
+        p->Error0 += 360.0f;
+    }
 
-    // 双PD式PID计算
+    // 积分累加 + 抗饱和限幅
+    if (p->Ki != 0)
+    {
+        p->ErrorInt += p->Error0;
+        if(p->ErrorInt > 10) p->ErrorInt = 10;
+        if(p->ErrorInt < -10) p->ErrorInt = -10;
+    }
+    else
+    {
+        p->ErrorInt = 0;
+    }
+
+    // 双PD + I 式PID计算
     p->Out = p->Kp * p->Error0
-           + p->KP2 * p->Error0 * abs(p->Error0)
-           + p->Kd * (p->Error0 - p->Error1)
-           + p->GKD * p->gyro_z;
+            + p->KP2 * p->Error0 * fabsf(p->Error0)
+            + p->Ki * p->ErrorInt
+            + p->Kd * (p->Error0 - p->Error1)
+            + p->GKD * p->gyro_z;
 
     // 输出限幅
     if(p->Out > p->OutMax) p->Out = p->OutMax;

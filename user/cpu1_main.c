@@ -49,11 +49,11 @@ void core1_main(void)
     interrupt_global_enable(0);             // 打开全局中断
         // 此处编写需要循环执行的代码
 
-       while(1)
-       {
+        while(1)
+        {
 
         // 此处编写需要循环执行的代码
-       }
+        }
 }
 #pragma section all restore
 // **************************** 代码区域 ****************************

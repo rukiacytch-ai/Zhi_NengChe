@@ -1,0 +1,10 @@
+Debug/
+Release/
+.settings/
+*.elf
+*.hex
+*.o
+*.d
+*.map
+*.src
+*.mk
