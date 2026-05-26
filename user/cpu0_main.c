@@ -61,8 +61,8 @@ PID_t SpeedPID_R =
 PID_t AnglePID =
 {
     .Kp = 0.14,
-    .Kd = 0.10,
-    .GKD = 0.0008,
+    .Kd = 0.07,
+    .GKD = 0.0004,
     .KP2 = 0.0005,
     .Ki = 0.00,
 
@@ -144,7 +144,7 @@ bool has_reached_point = false; // 记录是否已经到达了当前点
 uint16 count5 = 0;              // 复现模式开启后，等待 n s 再出发
 
 // 比赛调试参数集中放在这里，避免临场改逻辑代码
-#define INIT_YAW_LOCK_MS (1500U)                 // 上电后等待 IMU 稳定再锁定初始 yaw
+#define INIT_YAW_LOCK_MS (5000U)                 // 上电后零偏校准与锁定初始 yaw 的等待时间
 #define REPLAY_WAIT_MS (3000U)                   // 复现按键按下后的静止等待时间
 #define REPLAY_FUYA_SPEED (0)                  // 复现时负压占空比，0 表示关闭
 #define REPLAY_START_YAW_CHECK_ENABLE (1)        // IMU 偶发 -178/178 跳变，默认不拦截起跑
@@ -425,14 +425,9 @@ int core0_main(void)
     tft180_init();
     tft180_clear();
 
-    /*
-            调大 Q 或减小 R --------> 响应加快 / 调大 R 或减小 Q --------> 响应变平滑
-    */
-    Yaw_Kalman_Filter_Init(0.01, 0);
-
     // 逐飞助手初始化，使用 DEBUG 串口进行收发
     seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
-    oscilloscope_data.channel_num = 5; // 设置显示通道数量，这里最大支持 8 个通道
+    oscilloscope_data.channel_num = 1; // 设置显示通道数量，这里最大支持 8 个通道
 
     // imu 初始化
     while (1) {
@@ -569,6 +564,10 @@ int core0_main(void)
 //            oscilloscope_data.data[2] = SpeedPID_L.Out; // 显示 AnglePID.Out
         /*-----------------------速度环波形-----------------------*/
 
+        /* 临时变量显示波形 */
+        oscilloscope_data.data[0] = KalMan_Yaw;
+        /* 临时变量显示波形 */
+
         /*------------------------逐飞上位机无线调参------------------------*/
         // 每次通过接收中断接收数据
 //      seekfree_assistant_data_analysis();
@@ -604,7 +603,7 @@ int core0_main(void)
         /*------------------------逐飞上位机无线调参------------------------*/
 
         /*最后发送给上位机需要显示波形的值*/
-//    seekfree_assistant_oscilloscope_send(&oscilloscope_data);
+    seekfree_assistant_oscilloscope_send(&oscilloscope_data);
 
         // 此处可以写需要循环执行的代码
     }
@@ -622,14 +621,30 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
     Count2++;
 
     // 等待 IMU 稳定后确定初始角度
+    static float calib_yaw_start = 0.0f;
+    static float drift_per_5ms = 0.0f;
+    static float accumulated_drift = 0.0f;
+
+    // 等待 IMU 稳定并自动校准零偏
     if (is_waiting_done == false)
     {
         Count6++;
+        if (Count6 == 2000) // 上电 2.0 秒后，SFLP 姿态融合滤波器完全收敛稳定，此时记录起始角度
+        { 
+            calib_yaw_start = imu660rc_yaw;
+        }
     }
     if (Count6 >= INIT_YAW_LOCK_MS)
     {
+        float calib_yaw_end = imu660rc_yaw;
+        // 计算校准时间内的总漂移量（考虑 0-360 度跨界）
+        float drift_diff = Get_Normalized_Angle_Error(calib_yaw_end, calib_yaw_start);
+        // 计算每 5ms 的漂移增量 (从 2000ms 到 5000ms 共 3000ms，即 600 个 5ms 样本)
+        drift_per_5ms = drift_diff / (3000.0f / 5.0f);
+        
         is_waiting_done = true;
         Count6 = 0;
+        printf("\r\n>>> 零偏校准完成! 3.0s内静态漂移: %.2f度, 每5ms漂移量: %f\r\n", drift_diff, drift_per_5ms);
     }
 
     // 复现等待，让负压和姿态先稳定
@@ -756,7 +771,15 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
     {
         Count2 = 0;
 
-        KalMan_Yaw = Normalize_Yaw_0_360(Kalman_Filter_Yaw_Update(imu660rc_yaw)); // 统一到 0~360，避免 -178/178 跳变
+        if (is_waiting_done)
+        { 
+            accumulated_drift += drift_per_5ms;
+            KalMan_Yaw = Normalize_Yaw_0_360(imu660rc_yaw - (accumulated_drift/4.0)); // 扣除累积零漂
+        }
+        else
+        { 
+            KalMan_Yaw = imu660rc_yaw;
+        }
         Gyro_z = imu660rc_gyro_transition(imu660rc_gyro_z);  // 获取当前角速度值
         Filtered_Gyro_z = Alpha * Gyro_z + (1 - Alpha) * Filtered_Gyro_z; // 一阶低通滤波
         AnglePID.gyro_z = Filtered_Gyro_z;                  // 更新角度环的角度值

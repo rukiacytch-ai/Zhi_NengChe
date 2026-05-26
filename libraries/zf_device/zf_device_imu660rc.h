@@ -176,9 +176,9 @@ typedef enum
 
 
 extern float imu660rc_transition_factor[2];
-extern int16 imu660rc_gyro_x,   imu660rc_gyro_y,    imu660rc_gyro_z;    // 三轴陀螺仪数据
-extern int16 imu660rc_acc_x ,   imu660rc_acc_y ,    imu660rc_acc_z;     // 三轴加速度计数据
-extern float imu660rc_roll  ,   imu660rc_pitch ,    imu660rc_yaw;       // 欧拉角
+extern volatile int16 imu660rc_gyro_x,   imu660rc_gyro_y,    imu660rc_gyro_z;    // 三轴陀螺仪数据
+extern volatile int16 imu660rc_acc_x ,   imu660rc_acc_y ,    imu660rc_acc_z;     // 三轴加速度计数据
+extern volatile float imu660rc_roll  ,   imu660rc_pitch ,    imu660rc_yaw;       // 欧拉角 (volatile 防止编译器优化)
 extern float imu660rc_quarternion[4];                                   // 四元数
 
 

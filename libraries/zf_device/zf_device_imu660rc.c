@@ -76,9 +76,9 @@
 static uint8 imu660rc_quarternion_rate;
 
 float imu660rc_transition_factor[2];
-int16 imu660rc_gyro_x = 0,  imu660rc_gyro_y = 0,    imu660rc_gyro_z = 0;    // 三轴陀螺仪数据   gyro (陀螺仪)
-int16 imu660rc_acc_x  = 0,  imu660rc_acc_y  = 0,    imu660rc_acc_z  = 0;    // 三轴加速度计数据 acc  (accelerometer 加速度计)
-float imu660rc_roll   = 0,  imu660rc_pitch  = 0,    imu660rc_yaw    = 0;    // 欧拉角
+volatile int16 imu660rc_gyro_x = 0,  imu660rc_gyro_y = 0,    imu660rc_gyro_z = 0;    // 三轴陀螺仪数据   gyro (陀螺仪)
+volatile int16 imu660rc_acc_x  = 0,  imu660rc_acc_y  = 0,    imu660rc_acc_z  = 0;    // 三轴加速度计数据 acc  (accelerometer 加速度计)
+volatile float imu660rc_roll   = 0,  imu660rc_pitch  = 0,    imu660rc_yaw    = 0;    // 欧拉角
 float imu660rc_quarternion[4];                                              // 四元数
 
 
