@@ -60,7 +60,7 @@ PID_t SpeedPID_R =
 /* 角度环 PID */
 PID_t AnglePID =
 {
-    .Kp = 0.14,
+    .Kp = 0.3,
     .Kd = 0.07,
     .GKD = 0.0004,
     .KP2 = 0.0005,
@@ -146,7 +146,7 @@ uint16 count5 = 0;              // 复现模式开启后，等待 n s 再出发
 // 比赛调试参数集中放在这里，避免临场改逻辑代码
 #define INIT_YAW_LOCK_MS (5000U)                 // 上电后零偏校准与锁定初始 yaw 的等待时间
 #define REPLAY_WAIT_MS (3000U)                   // 复现按键按下后的静止等待时间
-#define REPLAY_FUYA_SPEED (0)                  // 复现时负压占空比，0 表示关闭
+#define REPLAY_FUYA_SPEED (0)                    // 复现时负压占空比，0 表示关闭
 #define REPLAY_START_YAW_CHECK_ENABLE (1)        // IMU 偶发 -178/178 跳变，默认不拦截起跑
 #define REPLAY_START_YAW_TOLERANCE (4.0f)        // 起跑 yaw 允许偏差，单位：度
 #define TFT_DEBUG_ENABLE (0)                     // 1 在 TFT 上显示比赛调试量
@@ -245,7 +245,7 @@ void Save_Data_To_Flash(void) // 存储数据到 flash 函数
 bool is_replaying = false;       // 复现模式，默认关闭
 bool is_replay_only_once = true; // 保证打开开关，只复现一次
 uint32 curr_point = 0;           // 当前打点序号
-#define Replay_Speed (10)        // 复现时基础前进速度
+#define Replay_Speed (11)        // 复现时基础前进速度
 #define K_Turn_Decel  (0.8f)     // 弯道减速系数，越大入弯越保守
 #define Min_Turn_Speed (9.0f)    // 转弯最低速度下限
 
@@ -256,6 +256,10 @@ uint32 pre_look_point = 0;       // 前瞻目标点
 
 float Future_Turn_Angle = 0.0f; // 前瞻弯道幅度
 bool wait_for_a_while = false;
+
+/* 摄像头融合参数 */
+#define K_CAM (0.2f)                    // 摄像头横向纠偏融合系数，0=纯惯导，越大越信任摄像头
+volatile float camera_err = 0.0f;        // 摄像头中线偏差（主循环更新，中断读取）
 
 static void Stop_Replay_Safely(void)
 {
@@ -331,8 +335,8 @@ void Replay_the_path(void) // 路径复现函数
         // 减速前瞻：扫描前方弯道幅度
         {
             float ref_yaw = My_Flash_Buffer[pre_look_point];
-            uint32 scan_end = curr_point + DECEL_LOOK_AHEAD;
-            if (scan_end >= Save_To_Buffer_Index)
+            uint32 scan_end = curr_point + DECEL_LOOK_AHEAD;        // 减速前瞻点数
+            if (scan_end >= Save_To_Buffer_Index)                   // 防止减速前瞻点数溢出
             {
                 scan_end = Save_To_Buffer_Index - 1;
             }
@@ -368,28 +372,28 @@ seekfree_assistant_oscilloscope_struct oscilloscope_data;
 static void Show_Race_Debug_Info(void)
 {
     // 比赛调试页：优先看 yaw、目标、误差、点号和状态
-    tft180_show_string(0, 16 * 0, "YAW:");          // yaw角
-    tft180_show_float(32, 16 * 0, KalMan_Yaw, 5, 1);
-    tft180_show_string(0, 16 * 1, "TGT:");          // 目标角度
-    tft180_show_float(32, 16 * 1, AnglePID.Target, 5, 1);
-    tft180_show_string(0, 16 * 2, "ERR:");          // 角度误差
-    tft180_show_float(32, 16 * 2, error_angle, 4, 1);
-    tft180_show_string(0, 16 * 3, "VEL:");          // 行进速度
-    tft180_show_float(32, 16 * 3, Target_AveSpeed, 3, 1);
-    tft180_show_string(0, 16 * 4, "PNT:");          // 当前复现点数
-    tft180_show_int(32, 16 * 4, curr_point, 4);
-    tft180_show_string(72, 16 * 4, "/");            // 存入flash的点数
-    tft180_show_int(80, 16 * 4, Save_To_Buffer_Index, 4);
-    tft180_show_string(0, 16 * 5, "REC:");          // 是否处于记录模式
-    tft180_show_int(32, 16 * 5, is_record_for_tft, 1);
-    tft180_show_string(64, 16 * 5, "REP:");         // 是否处于复现模式
-    tft180_show_int(96, 16 * 5, is_replay_for_tft, 1);
-    tft180_show_string(0, 16 * 6, "LSP:");          // 左轮速度
-    tft180_show_float(32, 16 * 6, LeftSpeed, 3, 1);
-    tft180_show_string(0, 16 * 7, "RSP:");          // 右轮速度
-    tft180_show_float(32, 16 * 7, RightSpeed, 3, 1);
-    tft180_show_string(0, 16 * 8, "FUT:");          // 前瞻弯道幅度
-    tft180_show_float(32, 16 * 8, Future_Turn_Angle, 3, 1);
+//    tft180_show_string(0, 16 * 0, "YAW:");          // yaw角
+//    tft180_show_float(32, 16 * 0, camera_err, 5, 1);
+//    tft180_show_string(0, 16 * 1, "TGT:");          // 目标角度
+//    tft180_show_float(32, 16 * 1, AnglePID.Target, 5, 1);
+//    tft180_show_string(0, 16 * 2, "ERR:");          // 角度误差
+//    tft180_show_float(32, 16 * 2, error_angle, 4, 1);
+//    tft180_show_string(0, 16 * 3, "VEL:");          // 行进速度
+//    tft180_show_float(32, 16 * 3, Target_AveSpeed, 3, 1);
+//    tft180_show_string(0, 16 * 4, "PNT:");          // 当前复现点数
+//    tft180_show_int(32, 16 * 4, curr_point, 4);
+//    tft180_show_string(72, 16 * 4, "/");            // 存入flash的点数
+//    tft180_show_int(80, 16 * 4, Save_To_Buffer_Index, 4);
+//    tft180_show_string(0, 16 * 5, "REC:");          // 是否处于记录模式
+//    tft180_show_int(32, 16 * 5, is_record_for_tft, 1);
+//    tft180_show_string(64, 16 * 5, "REP:");         // 是否处于复现模式
+//    tft180_show_int(96, 16 * 5, is_replay_for_tft, 1);
+//    tft180_show_string(0, 16 * 6, "LSP:");          // 左轮速度
+//    tft180_show_float(32, 16 * 6, LeftSpeed, 3, 1);
+//    tft180_show_string(0, 16 * 7, "RSP:");          // 右轮速度
+//    tft180_show_float(32, 16 * 7, RightSpeed, 3, 1);
+//    tft180_show_string(0, 16 * 8, "FUT:");          // 前瞻弯道幅度
+//    tft180_show_float(32, 16 * 8, Future_Turn_Angle, 3, 1);
 }
 #endif
 
@@ -413,17 +417,14 @@ int core0_main(void)
     PID_Init(&SpeedPID_R);
     PID_Init(&AnglePID);
 
-    /* 拨码开关初始化 */
-    Switch_Init();
-
     /* 按键初始化 */
     Key_Init();
 
     /* tft屏幕初始化 */
-    tft180_set_dir(TFT180_PORTAIT);
-    tft180_set_color(RGB565_BLACK, RGB565_WHITE);
-    tft180_init();
-    tft180_clear();
+//    tft180_set_dir(TFT180_PORTAIT);
+//    tft180_set_color(RGB565_BLACK, RGB565_WHITE);
+//    tft180_init();
+//    tft180_clear();
 
     // 逐飞助手初始化，使用 DEBUG 串口进行收发
     seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
@@ -439,7 +440,17 @@ int core0_main(void)
         }
     }
 
-    /* 定时器初始化 */
+    // 摄像头初始化
+    while (1) {
+        if (mt9v03x_init()) {
+            printf("\r\n MT9V03X init error.");
+        } else {
+            printf("\r\n MT9V03X init right.");
+            break;
+        }
+    }
+
+    // 定时中断初始化
     pit_ms_init(PIT_NUM, 1); // 初始化 CCU6_1_CH0 为周期中断 1ms 频率
 
 //        cpu_wait_event_ready(); // 等待所有核心初始化完毕
@@ -448,7 +459,7 @@ int core0_main(void)
 
     PID_Flag = false; // PID 开启标志位
 
-    bool is_send_once = true; // 记录模式进入提示，只打印一次，不重复打印
+    bool is_send_once = true;
 
 //    SpeedPID_L.Target = 13;
 //    SpeedPID_R.Target = 13;         // 初始速度环目标值
@@ -458,12 +469,16 @@ int core0_main(void)
     while (TRUE)
     {
         //        printf("test\r\n");
-//        if(mt9v03x_finish_flag)
-//        {
-//            Image_Binarization();
-//            scan_border();
-//            mt9v03x_finish_flag = 0;
-//        }
+        if(mt9v03x_finish_flag)
+        {
+            Image_Binarization();
+            scan_border();
+            camera_err = -Err_Sum(40, 42);  // 计算前瞻区域（第25~45行）的中线偏差
+            mt9v03x_finish_flag = 0;
+        }
+
+//        tft180_show_string(0, 16 * 0, "CER:");          // 图像偏差
+//        tft180_show_float(32, 16 * 6, camera_err, 5, 1);
 
 #if TFT_DEBUG_ENABLE
         Show_Race_Debug_Info();
@@ -565,7 +580,7 @@ int core0_main(void)
         /*-----------------------速度环波形-----------------------*/
 
         /* 临时变量显示波形 */
-        oscilloscope_data.data[0] = KalMan_Yaw;
+//        oscilloscope_data.data[0] = KalMan_Yaw;
         /* 临时变量显示波形 */
 
         /*------------------------逐飞上位机无线调参------------------------*/
@@ -603,7 +618,7 @@ int core0_main(void)
         /*------------------------逐飞上位机无线调参------------------------*/
 
         /*最后发送给上位机需要显示波形的值*/
-    seekfree_assistant_oscilloscope_send(&oscilloscope_data);
+//    seekfree_assistant_oscilloscope_send(&oscilloscope_data);
 
         // 此处可以写需要循环执行的代码
     }
@@ -615,13 +630,13 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
     interrupt_global_enable(0); // 开启中断嵌套
     static uint16 Count1 = 0;   // 速度环 PID 周期计数
     static uint16 Count2 = 0;   // 角度环 PID 周期计数
-    static uint16 Count6 = 0; // 上电后等待 IMU 稳定，再锁定初始 yaw
+    static uint16 Count6 = 0;   // 上电后等待 IMU 稳定，再锁定初始 yaw
 
     Count1++;
     Count2++;
 
     // 等待 IMU 稳定后确定初始角度
-    static float calib_yaw_start = 0.0f;
+    static float calib_yaw_start = 0.0f;        // 起始yaw角
     static float drift_per_5ms = 0.0f;
     static float accumulated_drift = 0.0f;
 
@@ -629,7 +644,7 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
     if (is_waiting_done == false)
     {
         Count6++;
-        if (Count6 == 2000) // 上电 2.0 秒后，SFLP 姿态融合滤波器完全收敛稳定，此时记录起始角度
+        if (Count6 == 2000) // 上电 2.0 秒后，记录起始角度
         { 
             calib_yaw_start = imu660rc_yaw;
         }
@@ -780,9 +795,10 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
         { 
             KalMan_Yaw = imu660rc_yaw;
         }
+
         Gyro_z = imu660rc_gyro_transition(imu660rc_gyro_z);  // 获取当前角速度值
         Filtered_Gyro_z = Alpha * Gyro_z + (1 - Alpha) * Filtered_Gyro_z; // 一阶低通滤波
-        AnglePID.gyro_z = Filtered_Gyro_z;                  // 更新角度环的角度值
+        AnglePID.gyro_z = Filtered_Gyro_z;                    // 更新角度环的角度值
 
         if (is_waiting_done == true && is_set_once == false) // 设置初始角度
         {
@@ -814,6 +830,20 @@ IFX_INTERRUPT(cc61_pit_ch0_isr, 0, CCU6_1_CH0_ISR_PRIORITY)
                 AnglePID.Out = 0.0;
             }
             DifSpeed_Target = AnglePID.Out;
+
+            // 摄像头横向纠偏（仅复现模式下生效）
+            if (is_replaying && wait_for_a_while)
+            {
+                float cam_weight = K_CAM;
+                float angle_abs = fabsf(error_angle);
+                // 弯道自动降权：角度偏差越大越信任惯导
+                if (angle_abs > 70.0f)
+                    cam_weight *= 0.3f;
+                else if (angle_abs > 5.0f)
+                    cam_weight *= 0.9f;
+                DifSpeed_Target += cam_weight * camera_err;
+            }
+
             if (is_replaying && wait_for_a_while)
             {
                 float effective_angle = fmax(fabs(error_angle), Future_Turn_Angle * FUTURE_DECEL_K);

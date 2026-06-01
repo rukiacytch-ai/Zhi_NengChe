@@ -16,5 +16,6 @@ extern  uint8 Left_line_found[DST_H];//左边线是否真实扫到，1=扫到，0=丢线/补线
 extern  uint8 Right_line_found[DST_H];//右边线是否真实扫到，1=扫到，0=丢线/补线
 
 void scan_border(void);
+float Err_Sum(int start, int end);
 
 #endif /* CODE_SCAN_LINE_H_ */

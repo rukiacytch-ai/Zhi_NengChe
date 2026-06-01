@@ -20,6 +20,8 @@ uint8  up_inflection_found = 0;
 #define BORDER_LOST_TO_SIDE_TIME 3     // 连续丢线达到这个行数后，将丢线侧边界压到最左或最右
 #define center  70
 
+
+
 // 将横坐标限制在图像有效范围内，避免扫线访问越界
 static int border_limit_x(int x)
 {
